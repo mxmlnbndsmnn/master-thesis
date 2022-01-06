@@ -8,6 +8,7 @@ Created on Fri Nov 26 11:34:11 2021
 import os
 import mne
 from scipy.io import loadmat
+import scipy.signal as signal
 import numpy as np
 from numpy import savetxt, loadtxt
 import matplotlib.pyplot as plt
@@ -186,22 +187,7 @@ if False:
                   duration=10, start=start_time)
 
 
-# how to get the required data structure...
-if False:
-    transposed_eeg_data = eeg_data.transpose()
-    trials = list()
-    event = events[0]
-    start_i = event['start']
-    stop_i = event['stop']
-    # trial = np.array([[ch[i] for ch in transposed_eeg_data] for i in range(start_i, stop_i)])
-    trial = np.array([[ch[i] for i in range(start_i, stop_i)] for ch in transposed_eeg_data])
-    # -> times x channels
-    # trial = np.array([row[start_i:stop_i] for row in eeg_data])
-    
-    # trial = trial.transpose()
-    print(trial.shape)
-
-
+# cut trials from the full eeg data
 if True:
     # reshape eeg data -> n_channels x n_times
     transposed_eeg_data = eeg_data.transpose()
@@ -223,7 +209,35 @@ if True:
     X = np.array(trials)
     # y must be: targets corresponding to the trials
     y = np.array(y)
-    
+
+# can get min and max values in an array by np.amin and np.amax
+
+# test: STFT per channel, per trial
+trial = X[0]
+print(trial.shape) # (22, 200)
+# pick data from one channel -> shape (200,)
+ch=trial[5]
+
+# segment length is 256 by default, but input length is only 200 here
+nperseg = 50
+f,t,Zxx = signal.stft(ch, fs=sample_frequency, nperseg=nperseg)
+# for a sampling frequency of 200 this yields:
+# f - array of sample frequencies -> shape (33,)
+# t - array of segment times -> shape (8,)
+# Zxx - STFT of x -> shape (33, 8)
+# shading should be either nearest or gouraud
+# or flat when making the color map (Zxx) one smaller than t and f:
+cutZxx = Zxx[:-1,:-1]
+plt.pcolormesh(t, f, np.abs(cutZxx), vmin=0, vmax=2, shading='flat')
+plt.title(f'STFT Magnitude (segment length: {nperseg})')
+plt.ylabel('Frequency [Hz]')
+plt.xlabel('Time [sec]')
+plt.show()
+# why does it look like more than 1 second? because of the segment length?
+# yep, apparently since it fits when using dividers of 200 like 50
+
+
+if False:
     # mne.set_log_level(verbose='warning',return_old_level=True)
     # old level was 20, now is 30
     
