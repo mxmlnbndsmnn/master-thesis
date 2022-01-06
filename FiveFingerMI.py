@@ -213,8 +213,6 @@ if True:
         # stop_i = event['stop']
         stop_i = start_i + 200
         trial = np.array([[ch[i] for i in range(start_i, stop_i)] for ch in transposed_eeg_data])
-        ## trial = np.array([[ch[i] for ch in transposed_eeg_data] for i in range(start_i, stop_i)])
-        ## trial = trial.transpose()
         
         trials.append(trial)
         
@@ -222,37 +220,31 @@ if True:
         y.append(event['event'])
     
     # X must be: list of pre-cut trials as n_trials x n_channels x n_times
-    # X = eeg_data
     X = np.array(trials)
-    # X = trials
     # y must be: targets corresponding to the trials
-    # y = [1,2,3,4,5]
-    # for normal list y - error: invalid index to scalar variable (clf.fit)
     y = np.array(y)
     
     # mne.set_log_level(verbose='warning',return_old_level=True)
     # old level was 20, now is 30
     
-    windows_dataset = create_from_X_y(
-        X, y, drop_last_window=False, sfreq=sample_frequency, ch_names=ch_names,
-        # must pass in some numbers here if the number of data points is
-        # different for the trials
-        # window_size_samples=200,
-        # window_stride_samples=200,
-    )
-    print("dataset description:")
-    print(windows_dataset.description)
-    # now the data can be indexed
+    # split into train and valid set
+    num_time_points = len(X) #windows_dataset
+    split_i = int(num_time_points * 0.8)
     
-    num_frames = len(X) #windows_dataset
-    split_i = int(num_frames * 0.8)
-    # splitted = windows_dataset.split([[1,2,3], [4,5,6]])
-    # splitted = windows_dataset.split({'train': [0,1], 'valid': [2,3]})
+    train_X = X[:split_i]
+    valid_X = X[split_i:]
+    train_y = y[:split_i]
+    valid_y = y[split_i:]
     
-    # list index out of range when using len(windows_dataset) as num_frames
-    # -> using len(X) instead
-    train_set = windows_dataset.split([i for i in range(split_i)])['0']
-    valid_set = windows_dataset.split([i for i in range(split_i, num_frames)])['0']
+    # TODO standardize per channel?
+    
+    # create individual train and valid sets
+    train_set = create_from_X_y(train_X, train_y, drop_last_window=False)
+    valid_set = create_from_X_y(valid_X, valid_y, drop_last_window=False)
+    print("train dataset description:")
+    print(train_set.description)
+    print("valid dataset description:")
+    print(valid_set.description)
     
     cuda = torch.cuda.is_available()  # check if GPU is available, if True chooses to use it
     device = 'cuda' if cuda else 'cpu'
@@ -261,17 +253,15 @@ if True:
     
     print("creating model...")
     input_window_samples = 400 # ?
-    # input_window_samples = len(train_set) # ?
-    # input_window_samples = num_frames # ?
     # model = ShallowFBCSPNet(
     model = Deep4Net(
         len(ch_names), # number of channels
         5, # number of classes
-        input_window_samples=input_window_samples, # TODO what is this?
+        input_window_samples=input_window_samples,
         final_conv_length='auto',
         # final_conv_length=10,
-        pool_time_length=2,
-        pool_time_stride=2,
+        # pool_time_length=2,
+        # pool_time_stride=2,
     )
     
     # Send model to GPU (if possible)
@@ -290,25 +280,25 @@ if True:
         optimizer__weight_decay=0,
         batch_size=batch_size,
         # classes=[1,2,3,4,5],
-        # callbacks=[
-        #     "accuracy", ("lr_scheduler", LRScheduler('CosineAnnealingLR', T_max=n_epochs - 1)),
-        # ],
+        callbacks=[
+            "accuracy", ("lr_scheduler", LRScheduler('CosineAnnealingLR', T_max=n_epochs - 1)),
+        ],
         device=device,
     )
     clf.fit(train_set, y=None, epochs=n_epochs)
     
-    # error in clf.fit: target 5 is out of bounds
-    # same if I pass in a list of classes to the EEGClassifier
-    
-    # changed input_window_samples param to use len(train_set)
+    # using ShallowFBCSPNet model
     # -> Error in 439 _conv_forward
     # RuntimeError: Calculated padded input size per channel: (7 x 1). Kernel
-    # size: (45 x 1). Kernel size can't be greater than actual input size
+    # size: (21 x 1). Kernel size can't be greater than actual input size
     
     # changed model to Deep4Net
     # -> Error in 439 _conf_forward
     # RuntimeError: Calculated padded input size per channel: (3 x 1). Kernel
     # size: (10 x 1). Kernel size can't be greater than actual input size
+    # or with auto final_conv_length Error in 718 _max_pool2d
+    # RuntimeError: Given input size: (200x1x1). Calculated output size:
+    # (200x0x1). Output size is too small
     
     # plot the results
     # Extract loss and accuracy values for plotting from history object
