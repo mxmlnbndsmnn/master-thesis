@@ -232,10 +232,14 @@ plt.pcolormesh(t, f, np.abs(cutZxx), vmin=0, vmax=2, shading='flat')
 plt.title(f'STFT Magnitude (segment length: {nperseg})')
 plt.ylabel('Frequency [Hz]')
 plt.xlabel('Time [sec]')
-plt.show()
+# plt.show() # ? not needed; do not use for savefig to work!
+
 # why does it look like more than 1 second? because of the segment length?
 # yep, apparently since it fits when using dividers of 200 like 50
 
+# save the result to an image file
+# plt.savefig("stft.png") # with axis and labels
+# plt.imsave("test.png", np.abs(cutZxx), vmin=0, vmax=2) # data only
 
 if False:
     # mne.set_log_level(verbose='warning',return_old_level=True)
