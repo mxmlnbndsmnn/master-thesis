@@ -13,7 +13,7 @@ import numpy as np
 from numpy import savetxt, loadtxt
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
-from braindecode.datautil import create_from_X_y
+from braindecode.datasets import create_from_X_y # used to be in .datautil
 from braindecode.models import ShallowFBCSPNet, Deep4Net
 from braindecode import EEGClassifier
 import torch
