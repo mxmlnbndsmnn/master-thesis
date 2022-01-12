@@ -1,7 +1,10 @@
 .spyproject
 A\ large\ MI\ EEG\ dataset\ for\ EEG\ BCI
+flower_photos
+parts
 csvs
 BCI_Comp3_Dataset_3
 mne_data
 BCI_Comp4_Dataset_2b
 BCICIV_2a_gdf
+*.png
