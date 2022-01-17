@@ -10,6 +10,8 @@ import numpy as np
 import os
 import tensorflow as tf
 import pathlib
+# import sys
+# import sklearn.metrics
 
 from tensorflow import keras
 from tensorflow.keras import layers
@@ -22,9 +24,11 @@ image_count = len(list(data_dir.glob('*/*.jpg')))
 list_ds = tf.data.Dataset.list_files(str(data_dir/'*/*'), shuffle=False)
 list_ds = list_ds.shuffle(image_count, reshuffle_each_iteration=False)
 
-batch_size = 30
+batch_size = 40
 img_height = 256
 img_width = 256
+
+do_convert_to_grayscale = True
 
 # for f in list_ds.take(5):
 #   print(f.numpy())
@@ -32,16 +36,17 @@ img_width = 256
 # obtain class names from folder names
 # ['3021' '30359' '3666' '3709' '6233']
 class_names = np.array(sorted([item.name for item in data_dir.glob('*')]))
-# print(class_names)
+print(f"Classes: {class_names}")
 
 # split dataset
-if False:
+if True:
   train_size = int(image_count * 0.8)
-  valid_size = int(image_count * 0.1)
+  valid_size = int(image_count * 0.15)
   # 80% training
   train_ds = list_ds.take(train_size)
-  # 10% validation and test
+  # 15% validation
   valid_ds = list_ds.skip(train_size).take(valid_size)
+  # 5% test
   test_ds = list_ds.skip(train_size+valid_size)
   
   print(f"#Training images: {tf.data.experimental.cardinality(train_ds).numpy()}")
@@ -60,7 +65,11 @@ def get_label(file_path):
 
 def decode_img(img):
     # Convert the compressed string to a 3D uint8 tensor
-    img = tf.io.decode_jpeg(img, channels=3)
+    # channels: 3 = RGB, 1 = grayscale
+    channels = 3
+    if do_convert_to_grayscale:
+      channels = 1
+    img = tf.io.decode_jpeg(img, channels=channels)
     # Resize the image to the desired size
     return tf.image.resize(img, [img_height, img_width])
 
@@ -74,7 +83,7 @@ def process_path(file_path):
 
 
 # Set `num_parallel_calls` so multiple images are loaded/processed in parallel.
-if False:
+if True:
   AUTOTUNE = tf.data.AUTOTUNE
   train_ds = train_ds.map(process_path, num_parallel_calls=AUTOTUNE)
   valid_ds = valid_ds.map(process_path, num_parallel_calls=AUTOTUNE)
@@ -93,7 +102,7 @@ def configure_for_performance(ds):
   return ds
 
 
-if False:
+if True:
   train_ds = configure_for_performance(train_ds)
   valid_ds = configure_for_performance(valid_ds)
   test_ds = configure_for_performance(test_ds)
@@ -114,12 +123,14 @@ if False:
 num_classes = len(class_names)
 
 
+# if do_convert_to_grayscale: shape 1 instead of 3
+
 def create_model():
   # data augmentation layer: add slightly altered copies of all images
   data_augmentation = Sequential(
     [
-      # layers.RandomFlip("horizontal", input_shape=(img_height, img_width, 3)),
-      layers.RandomFlip("horizontal"),
+      layers.RandomFlip("horizontal", input_shape=(img_height, img_width, 1)),
+      # layers.RandomFlip("horizontal"),
       layers.RandomRotation(0.1),
       layers.RandomZoom(0.1),
     ]
@@ -129,38 +140,44 @@ def create_model():
   # note that the input_shape should be provided in the first layer
   model = Sequential([
     # standardize values to be in range [0,1]
-    layers.Rescaling(1./255, input_shape=(img_height, img_width, 3)),
-    # data_augmentation,
+    # layers.Rescaling(1./255, input_shape=(img_height, img_width, 3)),
+    data_augmentation,
     # layers.Rescaling(1./255),
-    layers.Conv2D(16, 3, padding='same', activation='relu'),
+    layers.Conv2D(16, 3, padding='same', activation='elu'),
     layers.MaxPooling2D(),
-    layers.Conv2D(32, 3, padding='same', activation='relu'),
+    layers.Conv2D(32, 3, padding='same', activation='elu'),
     layers.MaxPooling2D(),
-    layers.Conv2D(64, 3, padding='same', activation='relu'),
+    layers.Conv2D(64, 3, padding='same', activation='elu'),
     layers.MaxPooling2D(),
-    layers.Dropout(0.25),
+    layers.Dropout(0.5),
     layers.Flatten(),
-    layers.Dense(128, activation='relu'),
+    layers.Dense(128, activation='elu'),
     layers.Dense(num_classes)
   ])
   
   return model
 
 
-if False:
+if True:
   model = create_model()
   
+  # instantiate an optimizer
+  optimizer = tf.keras.optimizers.Adagrad(
+    learning_rate=0.001, initial_accumulator_value=0.1, epsilon=1e-07,
+    name='Adagrad')
+  
   # compile the model
-  model.compile(optimizer='adam',
+  model.compile(optimizer=optimizer,
                 loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
                 metrics=['accuracy'])
   
   # view the layers of the model
-  model.summary()
+  # model.summary()
   
   # train the model
-  num_epochs = 16
-  history = model.fit(train_ds, validation_data=valid_ds, epochs=num_epochs)
+  num_epochs = 10
+  history = model.fit(train_ds, validation_data=valid_ds, epochs=num_epochs,
+                      verbose=1)
 
 
 # save it to a folder structure
@@ -169,7 +186,7 @@ if False:
 # model.save("parts_models/1")
 
 # load a saved model
-model = tf.keras.models.load_model('parts_models/1')
+# model = tf.keras.models.load_model('parts_models/1')
 
 
 # visualize training results
@@ -197,7 +214,7 @@ def visualize_training(history, num_epochs):
   plt.show()
 
 
-# visualize_training(history, num_epochs)
+visualize_training(history, num_epochs)
 
 
 # predict on unseen data
@@ -244,30 +261,50 @@ def print_top_n_scores(score, class_names, num_top_scores=3):
 # predictions = model.predict(test_ds)
 # predictions contains the scores for all images in the test_ds
 
-image = tf.keras.preprocessing.image.load_img(os.path.join("parts", "3021", "20220112_190746_017.jpg"))
-# image = tf.keras.preprocessing.image.load_img(os.path.join("parts", "30359", "20220112_190626_027.jpg"))
-image = tf.image.resize(image, [img_height, img_width])
-input_arr = tf.keras.preprocessing.image.img_to_array(image)
-input_arr = np.array([input_arr])  # Convert single image to a batch.
-predictions = model.predict(input_arr)
-score = tf.nn.softmax(predictions[0]).numpy()
+# predict class of a single image
+def predict_single_image(model, image_path):
+  image = tf.keras.preprocessing.image.load_img(image_path)
+  image = tf.image.resize(image, [img_height, img_width])
+  # if using only one channel (grayscale)
+  if do_convert_to_grayscale:
+    image = tf.image.rgb_to_grayscale(image)
+  input_arr = tf.keras.preprocessing.image.img_to_array(image)
+  input_arr = np.array([input_arr])  # Convert single image to a batch.
+  predictions = model.predict(input_arr)
+  score = tf.nn.softmax(predictions[0]).numpy()
+  return score
 
 
-# print result
-print_highest_score(score, class_names)
+# os.path.join("parts", "30359", "20220112_190626_027.jpg")
+# image_path = os.path.join("parts", "3021", "20220112_190746_017.jpg")
+# score = predict_single_image(model, image_path)
 
-print("All scores:")
-print_all_scores(score, class_names)
+test_image_paths = list()
+test_image_paths.append(os.path.join("parts", "30359", "20220112_190626_027.jpg"))
+test_image_paths.append(os.path.join("parts", "3021", "20220112_190746_017.jpg"))
+test_image_paths.append(os.path.join("parts", "6249", "00235.jpg"))
+test_image_paths.append(os.path.join("unknown_image.jpg"))
 
-print("Scores above 20%:")
-print_class_scores_above(score, class_names, 20)
-
-print("Top 3 scores:")
-print_top_n_scores(score, class_names, 3)
+for image_path in test_image_paths:
+  score = predict_single_image(model, image_path)
+  
+  print(f"Try to predict class for image {image_path}")
+  
+  # print result
+  print_highest_score(score, class_names)
+  
+  print("All scores:")
+  print_all_scores(score, class_names)
+  
+  # print("Scores above 20%:")
+  # print_class_scores_above(score, class_names, 20)
+  
+  # print("Top 3 scores:")
+  # print_top_n_scores(score, class_names, 3)
 
 
 # evaluate the model using a test dataset
-if False:
+if True:
   result = model.evaluate(test_ds)
   result_dict = dict(zip(model.metrics_names, result))
   print(result_dict)
@@ -275,15 +312,16 @@ if False:
 
 # works too: predict on multiple images
 # TODO: make into list + method
-image1 = tf.keras.preprocessing.image.load_img(os.path.join("parts", "3021", "20220112_190746_017.jpg"))
-image2 = tf.keras.preprocessing.image.load_img(os.path.join("parts", "30359", "20220112_190626_027.jpg"))
-image1 = tf.image.resize(image1, [img_height, img_width])
-image2 = tf.image.resize(image2, [img_height, img_width])
-input1 = tf.keras.preprocessing.image.img_to_array(image1)
-input2 = tf.keras.preprocessing.image.img_to_array(image2)
-input_arr = np.array([input1, input2])  # Convert to a batch
-predictions = model.predict(input_arr)
-for prediction in predictions:
-  score = tf.nn.softmax(prediction).numpy()
-  print_class_scores_above(score, class_names, 20)
+if False:
+  image1 = tf.keras.preprocessing.image.load_img(os.path.join("parts", "3021", "20220112_190746_017.jpg"))
+  image2 = tf.keras.preprocessing.image.load_img(os.path.join("parts", "30359", "20220112_190626_027.jpg"))
+  image1 = tf.image.resize(image1, [img_height, img_width])
+  image2 = tf.image.resize(image2, [img_height, img_width])
+  input1 = tf.keras.preprocessing.image.img_to_array(image1)
+  input2 = tf.keras.preprocessing.image.img_to_array(image2)
+  input_arr = np.array([input1, input2])  # Convert to a batch
+  predictions = model.predict(input_arr)
+  for prediction in predictions:
+    score = tf.nn.softmax(prediction).numpy()
+    print_class_scores_above(score, class_names, 20)
 
