@@ -6,6 +6,7 @@ Created on Fri Nov 26 11:34:11 2021
 """
 
 import os
+import pathlib
 import mne
 from scipy.io import loadmat
 import scipy.signal as signal
@@ -212,34 +213,92 @@ if True:
 
 # can get min and max values in an array by np.amin and np.amax
 
-# test: STFT per channel, per trial
-trial = X[0]
-print(trial.shape) # (22, 200)
-# pick data from one channel -> shape (200,)
-ch=trial[5]
+# TODO: band pass filter - how to?
+# use multiple channels and concatenate their stft result into one image per trial
 
-# segment length is 256 by default, but input length is only 200 here
-nperseg = 50
-f,t,Zxx = signal.stft(ch, fs=sample_frequency, nperseg=nperseg)
-# for a sampling frequency of 200 this yields:
-# f - array of sample frequencies -> shape (33,)
-# t - array of segment times -> shape (8,)
-# Zxx - STFT of x -> shape (33, 8)
-# shading should be either nearest or gouraud
-# or flat when making the color map (Zxx) one smaller than t and f:
-cutZxx = Zxx[:-1,:-1]
-plt.pcolormesh(t, f, np.abs(cutZxx), vmin=0, vmax=2, shading='flat')
-plt.title(f'STFT Magnitude (segment length: {nperseg})')
-plt.ylabel('Frequency [Hz]')
-plt.xlabel('Time [sec]')
-# plt.show() # ? not needed; do not use for savefig to work!
 
-# why does it look like more than 1 second? because of the segment length?
-# yep, apparently since it fits when using dividers of 200 like 50
+# for a single trial; calculate the stft and create an image
+# save it to a folder - one folder per event type (1-5)
+def create_stft_image_for_trial(trial, freq, path, picks=None, nperseg=50,
+                                axis=0, file_name="stft.png"):
+  channels = None
+  if picks is not None:
+    channels = [trial[ch_index] for ch_index in picks]
+  else:
+    channels = trial
+  
+  image_data = None
+  for ch in channels:
+    f,t,Zxx = signal.stft(ch, fs=freq, nperseg=nperseg)
+    absolutes = np.abs(Zxx)
+    if image_data is not None:
+      image_data = np.append(image_data, absolutes, axis=axis)
+    else:
+      image_data = absolutes
+  
+  # print(image_data.shape)
+  img_path = os.path.join(path, file_name)
+  plt.imsave(img_path, image_data, vmin=0, vmax=2)
 
-# save the result to an image file
-# plt.savefig("stft.png") # with axis and labels
-# plt.imsave("test.png", np.abs(cutZxx), vmin=0, vmax=2) # data only
+
+stft_folder = "stft_images"
+subject_folder = "SubjectC-151204"
+n_trials = 10
+trial_index = 1
+# for now, pick all channels except the last two
+stft_ch_picks = list(range(20))
+for trial, event in zip(trials, events):
+  f_name = f"{trial_index:05}.png"
+  event_type_string = str(event['event'])
+  path = os.path.join(stft_folder, subject_folder, event_type_string)
+  # ensure that a folder per event type exists
+  # also create parent (subject) folder if needed
+  # ignore if the folder already exists
+  pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+  create_stft_image_for_trial(trial, sample_frequency, axis=1, path=path,
+                              picks=stft_ch_picks, file_name=f_name)
+  trial_index += 1
+ 
+  # if trial_index > n_trials:
+    # break
+
+
+if False:
+  trial = X[0]
+  print(trial.shape) # (22, 200)
+  # pick data from one channel -> shape (200,)
+  ch=trial[5]
+  
+  # segment length is 256 by default, but input length is only 200 here
+  nperseg = 50
+  f,t,Zxx = signal.stft(ch, fs=sample_frequency, nperseg=nperseg)
+  # for a sampling frequency of 200 this yields:
+  # f - array of sample frequencies -> shape (33,)
+  # t - array of segment times -> shape (8,)
+  # Zxx - STFT of x -> shape (33, 8)
+  # shading should be either nearest or gouraud
+  # or flat when making the color map (Zxx) one smaller than t and f:
+  cutZxx = Zxx[:-1,:-1]
+  plt.pcolormesh(t, f, np.abs(cutZxx), vmin=0, vmax=2, shading='flat')
+  plt.title(f'STFT Magnitude (segment length: {nperseg})')
+  plt.ylabel('Frequency [Hz]')
+  plt.xlabel('Time [sec]')
+  # plt.show() # ? not needed; do not use for savefig to work!
+  
+  # why does it look like more than 1 second? because of the segment length?
+  # yep, apparently since it fits when using dividers of 200 like 50
+  
+  # save the result to an image file
+  # plt.savefig("stft.png") # with axis and labels
+  # plt.imsave("test.png", np.abs(cutZxx), vmin=0, vmax=2) # data only
+  
+  # throw together multiple "images"
+  absolutes = np.abs(Zxx)
+  # axis must be 0 or 1 to keep the 2D shape
+  image_data = np.append(absolutes, absolutes, axis=0)
+  print(image_data.shape)
+  plt.imsave("foobar.png", image_data, vmin=0, vmax=2)
+
 
 if False:
     # mne.set_log_level(verbose='warning',return_old_level=True)
