@@ -14,12 +14,13 @@ import numpy as np
 from numpy import savetxt, loadtxt
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
-from braindecode.datasets import create_from_X_y # used to be in .datautil
+from braindecode.datasets import create_from_X_y, create_from_mne_raw # used to be in .datautil
 from braindecode.models import ShallowFBCSPNet, Deep4Net
 from braindecode import EEGClassifier
 import torch
 from skorch.callbacks import LRScheduler
 from skorch.helper import predefined_split
+from sklearn.model_selection import train_test_split
 import pandas as pd
 
 
@@ -68,26 +69,6 @@ ch_names = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'O1', 'O2',
 
 # display some raw data
 picks = [1, 2, 3, 4, 5]
-
-# find the first occurence where the marker switches from 0 to non-zero
-if False:
-    start_i = 0
-    for i in range(num_samples):
-        if marker[i] > 0:
-            # print(i)
-            start_i = i
-            print(f"Found event of type {marker[i]}")
-            break
-    
-    stop_i = start_i + 1
-    for i in range(start_i, num_samples):
-        if marker[i] == 0:
-            # print(i)
-            stop_i = i
-            break
-    
-    print(f"Between {start_i} and {stop_i} ({stop_i-start_i+1} time points)")
-
 
 
 # find all events of a marker switching from 0 to >0
@@ -191,6 +172,7 @@ if True:
     # see np.min(transposed_eeg_data) and np.max(transposed_eeg_data)
     raw_data = mne.io.RawArray(transposed_eeg_data, info)
     raw_data.load_data()
+    raw_data.filter(4., 38.)
     
     start_time = events[0]['start']/sample_frequency
     
@@ -201,11 +183,12 @@ if True:
       descriptions.append(str(ev['event']))
     anno = mne.Annotations(onset=onsets, duration=1., description=descriptions)
     
+    raw_data.set_annotations(anno)
+    
     raw_copy = raw_data.copy()
-    raw_copy.filter(4., 38.)
+    # raw_copy.filter(4., 38.)
     raw_copy.pick(['F3', 'F4', 'C3', 'C4'])
     # raw_copy.pick(['C4'])
-    raw_copy.set_annotations(anno)
     
     # note: can access raw data like raw_copy[0] (channel-wise)
     # but the structure is weird
@@ -292,6 +275,32 @@ if False:
       # break
 
 
+# does not work, output images are invalid
+# values in raw_data are totally different from those in trials obtained from
+# transposed_eeg_data (above)
+if False:
+  stft_folder = "stft_images"
+  subject_folder = "SubjectC-151204-test2"
+  trial_index = 1
+  n_trials = 10
+  # for now, pick all channels except the last two
+  stft_ch_picks = list(range(20))
+  for event in events:
+    trial = [raw_data[ch][1] for ch in range(20)]
+    f_name = f"{trial_index:05}.png"
+    event_type_string = str(event['event'])
+    path = os.path.join(stft_folder, subject_folder, event_type_string)
+    # ensure that a folder per event type exists
+    # also create parent (subject) folder if needed
+    # ignore if the folder already exists
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+    create_stft_image_for_trial(trial, sample_frequency, axis=1, path=path,
+                                picks=stft_ch_picks, file_name=f_name)
+    trial_index += 1
+    if trial_index > n_trials:
+      break
+
+
 if False:
   trial = X[0]
   print(trial.shape) # (22, 200)
@@ -329,6 +338,42 @@ if False:
   plt.imsave("foobar.png", image_data, vmin=0, vmax=2)
 
 
+# another test: use mne.create_from_mne_raw
+# ValueError: All picks must be < n_channels (22), got 22
+if False:
+  windows_dataset = create_from_mne_raw(raw_data, 0, 0, 500, 500, False)
+  model = ShallowFBCSPNet(
+      len(ch_names), # number of channels
+      5, # number of classes
+      input_window_samples=len(windows_dataset),
+      final_conv_length='auto',
+      # final_conv_length=10,
+      # pool_time_length=2,
+      # pool_time_stride=2,
+  )
+  
+  X_train, X_test, y_train, y_test = train_test_split(windows_dataset, y,
+                                                      test_size=0.2, random_state=42)
+  
+  batch_size = 64
+  n_epochs = 10
+  clf = EEGClassifier(
+      model,
+      criterion=torch.nn.NLLLoss,
+      optimizer=torch.optim.AdamW,
+      # train_split=predefined_split(X_test),  # using valid_set for validation
+      optimizer__lr=0.0625 * 0.01,
+      optimizer__weight_decay=0,
+      batch_size=batch_size,
+      # classes=[1,2,3,4,5],
+      callbacks=[
+          "accuracy", ("lr_scheduler", LRScheduler('CosineAnnealingLR', T_max=n_epochs - 1)),
+      ],
+      device='cpu',
+  )
+  clf.fit(X_train, y=y_train, epochs=n_epochs)
+
+
 if False:
     # mne.set_log_level(verbose='warning',return_old_level=True)
     # old level was 20, now is 30
@@ -345,8 +390,8 @@ if False:
     # TODO standardize per channel?
     
     # create individual train and valid sets
-    train_set = create_from_X_y(train_X, train_y, drop_last_window=False)
-    valid_set = create_from_X_y(valid_X, valid_y, drop_last_window=False)
+    train_set = create_from_X_y(train_X, train_y, drop_last_window=False, sfreq=sample_frequency)
+    valid_set = create_from_X_y(valid_X, valid_y, drop_last_window=False, sfreq=sample_frequency)
     print("train dataset description:")
     print(train_set.description)
     print("valid dataset description:")
@@ -358,9 +403,9 @@ if False:
         torch.backends.cudnn.benchmark = True
     
     print("creating model...")
-    input_window_samples = 400 # ?
-    # model = ShallowFBCSPNet(
-    model = Deep4Net(
+    input_window_samples = len(train_set) # ?
+    model = ShallowFBCSPNet(
+    # model = Deep4Net(
         len(ch_names), # number of channels
         5, # number of classes
         input_window_samples=input_window_samples,
