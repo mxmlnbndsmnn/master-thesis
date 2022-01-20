@@ -168,28 +168,56 @@ if len(events) > 0 and False:
         ax.label_outer()
 
 
-# raw_data = mne.io.read_raw_fieldtrip(file_path, None, data_name="o")
-# print(raw_data.info)
-
-
 # create the core mne data structure from scratch
 # https://mne.tools/dev/auto_tutorials/simulation/10_array_objs.html#tut-creating-data-structures
-if False:
+if True:
     # by creating an info object ...
-    info = mne.create_info(ch_names, sfreq=sample_frequency)
-    info.set_montage('standard_1020')
-    print(info)
+    # ch_types = ['eeg'] * len(ch_names)
+    ch_types = 'eeg'
+    info = mne.create_info(ch_names, ch_types=ch_types, sfreq=sample_frequency)
+    # info.set_montage('standard_1020')
+    # print(info)
+    
+    # this results in errors related to missing data in info?
+    # e.g. ValueError: No Source for sfreq found
+    # or KeyError: 'time'
+    # raw_data = mne.io.read_raw_fieldtrip(file_path, info, data_name="o")
+    # print(raw_data.info)
+    
     # ... create mne data from an array of shape (n_channels, n_times)
     # the data read from .mat files must be transposed to match this shape
     transposed_eeg_data = eeg_data.transpose()
+    # the eeg data is expected to be in V but is actually in microvolts here!
+    # see np.min(transposed_eeg_data) and np.max(transposed_eeg_data)
     raw_data = mne.io.RawArray(transposed_eeg_data, info)
+    raw_data.load_data()
+    
     start_time = events[0]['start']/sample_frequency
-    raw_data.plot(show_scrollbars=False, show_scalebars=False,
-                  duration=10, start=start_time)
+    
+    onsets = list()
+    descriptions = list()
+    for ev in events:
+      onsets.append(ev['start']/sample_frequency)
+      descriptions.append(str(ev['event']))
+    anno = mne.Annotations(onset=onsets, duration=1., description=descriptions)
+    
+    raw_copy = raw_data.copy()
+    raw_copy.filter(4., 38.)
+    raw_copy.pick(['F3', 'F4', 'C3', 'C4'])
+    # raw_copy.pick(['C4'])
+    raw_copy.set_annotations(anno)
+    
+    # note: can access raw data like raw_copy[0] (channel-wise)
+    # but the structure is weird
+    
+    # data is in microvolts, not volts!
+    scalings = dict(eeg=4)
+    raw_copy.plot(show_scrollbars=False, show_scalebars=False,
+                  duration=6, start=start_time-1, scalings = scalings)
 
 
 # cut trials from the full eeg data
-if True:
+if False:
     # reshape eeg data -> n_channels x n_times
     transposed_eeg_data = eeg_data.transpose()
     trials = list()
@@ -241,26 +269,27 @@ def create_stft_image_for_trial(trial, freq, path, picks=None, nperseg=50,
   plt.imsave(img_path, image_data, vmin=0, vmax=2)
 
 
-stft_folder = "stft_images"
-subject_folder = "SubjectC-151204"
-n_trials = 10
-trial_index = 1
-# for now, pick all channels except the last two
-stft_ch_picks = list(range(20))
-for trial, event in zip(trials, events):
-  f_name = f"{trial_index:05}.png"
-  event_type_string = str(event['event'])
-  path = os.path.join(stft_folder, subject_folder, event_type_string)
-  # ensure that a folder per event type exists
-  # also create parent (subject) folder if needed
-  # ignore if the folder already exists
-  pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-  create_stft_image_for_trial(trial, sample_frequency, axis=1, path=path,
-                              picks=stft_ch_picks, file_name=f_name)
-  trial_index += 1
- 
-  # if trial_index > n_trials:
-    # break
+if False:
+  stft_folder = "stft_images"
+  subject_folder = "SubjectC-151204"
+  n_trials = 10
+  trial_index = 1
+  # for now, pick all channels except the last two
+  stft_ch_picks = list(range(20))
+  for trial, event in zip(trials, events):
+    f_name = f"{trial_index:05}.png"
+    event_type_string = str(event['event'])
+    path = os.path.join(stft_folder, subject_folder, event_type_string)
+    # ensure that a folder per event type exists
+    # also create parent (subject) folder if needed
+    # ignore if the folder already exists
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+    create_stft_image_for_trial(trial, sample_frequency, axis=1, path=path,
+                                picks=stft_ch_picks, file_name=f_name)
+    trial_index += 1
+   
+    # if trial_index > n_trials:
+      # break
 
 
 if False:
