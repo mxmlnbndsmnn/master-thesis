@@ -175,9 +175,9 @@ if True:
   # model.summary()
   
   # train the model
-  num_epochs = 10
+  num_epochs = 16
   history = model.fit(train_ds, validation_data=valid_ds, epochs=num_epochs,
-                      verbose=1)
+                      verbose=0)
 
 
 # save it to a folder structure

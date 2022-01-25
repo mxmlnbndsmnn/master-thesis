@@ -66,9 +66,12 @@ eeg_data = mat_data['data'].item()
 # channel names
 ch_names = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'O1', 'O2',
             'A1', 'A2', 'F7', 'F8', 'T3', 'T4', 'T5', 'T6', 'Fz', 'Cz', 'Pz', 'X3']
+# note that X3 is only for synchronization and A1, A2 are ground leads
 
-# display some raw data
-picks = [1, 2, 3, 4, 5]
+# channels closest to the primary motor cortex
+# F3, Fz, F4, C3, Cz, C4, P3, Pz, P4
+ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
+# print([ch_names[i] for i in ch_picks])
 
 
 # find all events of a marker switching from 0 to >0
@@ -129,6 +132,9 @@ if len(events) > 0 and False:
     # add one because the range (end) is exclusive
     stop = first_event['stop'] + 1
     
+    # display some raw data
+    picks = [1, 2, 3, 4, 5]
+    
     # stack multiple subplots in one dimension
     fig = plt.figure()
     gridspec = fig.add_gridspec(len(picks), hspace=0)
@@ -151,7 +157,7 @@ if len(events) > 0 and False:
 
 # create the core mne data structure from scratch
 # https://mne.tools/dev/auto_tutorials/simulation/10_array_objs.html#tut-creating-data-structures
-if True:
+if False:
     # by creating an info object ...
     # ch_types = ['eeg'] * len(ch_names)
     ch_types = 'eeg'
@@ -200,7 +206,7 @@ if True:
 
 
 # cut trials from the full eeg data
-if False:
+if True:
     # reshape eeg data -> n_channels x n_times
     transposed_eeg_data = eeg_data.transpose()
     trials = list()
@@ -252,15 +258,19 @@ def create_stft_image_for_trial(trial, freq, path, picks=None, nperseg=50,
   plt.imsave(img_path, image_data, vmin=0, vmax=2)
 
 
-if False:
+# working method to create stft images for one subject
+if True:
   stft_folder = "stft_images"
-  subject_folder = "SubjectC-151204"
+  subject_folder = "SubjectC-151204-9ch" # only pick some channels
+  # save with prefix to allow to throw multiple groups of images together later
+  file_prefix = "9ch"
   n_trials = 10
   trial_index = 1
   # for now, pick all channels except the last two
-  stft_ch_picks = list(range(20))
+  # stft_ch_picks = list(range(20))
+  stft_ch_picks = ch_picks
   for trial, event in zip(trials, events):
-    f_name = f"{trial_index:05}.png"
+    f_name = f"{file_prefix}_{trial_index:05}.png"
     event_type_string = str(event['event'])
     path = os.path.join(stft_folder, subject_folder, event_type_string)
     # ensure that a folder per event type exists

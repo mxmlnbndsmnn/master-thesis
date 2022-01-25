@@ -15,7 +15,7 @@ from tensorflow.keras import layers
 from tensorflow.keras.models import Sequential
 
 
-data_dir = pathlib.Path(os.path.join("stft_images", "SubjectC-151204"))
+data_dir = pathlib.Path(os.path.join("stft_images", "SubjectC-151204-9ch"))
 image_count = len(list(data_dir.glob('*/*.png')))
 
 list_ds = tf.data.Dataset.list_files(str(data_dir/'*/*'), shuffle=False)
@@ -23,7 +23,7 @@ list_ds = list_ds.shuffle(image_count, reshuffle_each_iteration=False)
 
 batch_size = 40
 img_height = 26
-img_width = 180
+img_width = 81
 
 class_names = np.array(sorted([item.name for item in data_dir.glob('*')]))
 print(f"Classes: {class_names}")
@@ -94,11 +94,15 @@ test_ds = configure_for_performance(test_ds)
 model = Sequential([
   # standardize values to be in range [0,1]
   layers.Rescaling(1./255, input_shape=(img_height, img_width, 3)),
-  # data_augmentation,
   # layers.Rescaling(1./255),
+  # data_augmentation:
+  # layers.RandomZoom(-0.2),
+  # layers.RandomTranslation(0., (-0.1, 0.1)),
+  # layers.RandomCrop(img_height, int(img_width*0.8)),
+  
   layers.Conv2D(16, 3, padding='same', activation='elu'),
-  layers.MaxPooling2D(),
-  layers.Dropout(0.1),
+  # layers.MaxPooling2D(),
+  # layers.Dropout(0.1),
   layers.Conv2D(32, 3, padding='same', activation='elu'),
   layers.MaxPooling2D(),
   layers.Dropout(0.1),
@@ -123,7 +127,7 @@ model.compile(optimizer=optimizer,
 model.summary()
 
 # train the model
-num_epochs = 40
+num_epochs = 80
 history = model.fit(train_ds, validation_data=valid_ds, epochs=num_epochs,
                     verbose=0)
 
