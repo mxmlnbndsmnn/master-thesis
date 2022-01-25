@@ -15,15 +15,15 @@ from tensorflow.keras import layers
 from tensorflow.keras.models import Sequential
 
 
-data_dir = pathlib.Path(os.path.join("stft_images", "SubjectC-151204-9ch"))
+data_dir = pathlib.Path(os.path.join("stft_images", "SubjectC-151204-9ch-cut"))
 image_count = len(list(data_dir.glob('*/*.png')))
 
 list_ds = tf.data.Dataset.list_files(str(data_dir/'*/*'), shuffle=False)
 list_ds = list_ds.shuffle(image_count, reshuffle_each_iteration=False)
 
 batch_size = 40
-img_height = 26
-img_width = 81
+img_height = 9
+img_width = 117
 
 class_names = np.array(sorted([item.name for item in data_dir.glob('*')]))
 print(f"Classes: {class_names}")
