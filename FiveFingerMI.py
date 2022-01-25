@@ -212,10 +212,16 @@ if True:
     trials = list()
     y = list()
     # input_window_samples = 200
+    
+    # start a bit earlier + extend
+    forerun_frames = int(sample_frequency * 0.2)
+    affix_frames = int(sample_frequency * 0.2)
+    # trial duration is actually variable, but cannot be determined precisely anyway
+    trial_frames = 200
     for event in events:
-        start_i = event['start']
+        start_i = event['start'] - forerun_frames
         # stop_i = event['stop']
-        stop_i = start_i + 200
+        stop_i = start_i + trial_frames + affix_frames
         trial = np.array([[ch[i] for i in range(start_i, stop_i)] for ch in transposed_eeg_data])
         
         trials.append(trial)
@@ -236,7 +242,7 @@ if True:
 
 # for a single trial; calculate the stft and create an image
 # save it to a folder - one folder per event type (1-5)
-def create_stft_image_for_trial(trial, freq, path, picks=None, nperseg=50,
+def create_stft_image_for_trial(trial, freq, path, picks=None, nperseg=40,
                                 axis=0, file_name="stft.png"):
   channels = None
   if picks is not None:
@@ -248,6 +254,12 @@ def create_stft_image_for_trial(trial, freq, path, picks=None, nperseg=50,
   for ch in channels:
     f,t,Zxx = signal.stft(ch, fs=freq, nperseg=nperseg)
     absolutes = np.abs(Zxx)
+    
+    # remove frequencies abouve 40Hz
+    keep_index = np.searchsorted(f, 40)
+    # f = f[:keep_index+1]
+    absolutes = absolutes[:keep_index+1, :]
+    
     if image_data is not None:
       image_data = np.append(image_data, absolutes, axis=axis)
     else:
@@ -261,9 +273,9 @@ def create_stft_image_for_trial(trial, freq, path, picks=None, nperseg=50,
 # working method to create stft images for one subject
 if True:
   stft_folder = "stft_images"
-  subject_folder = "SubjectC-151204-9ch" # only pick some channels
+  subject_folder = "SubjectC-151204-9ch-cut" # only pick some channels
   # save with prefix to allow to throw multiple groups of images together later
-  file_prefix = "9ch"
+  file_prefix = "9ch_cut"
   n_trials = 10
   trial_index = 1
   # for now, pick all channels except the last two
@@ -280,7 +292,7 @@ if True:
     create_stft_image_for_trial(trial, sample_frequency, axis=1, path=path,
                                 picks=stft_ch_picks, file_name=f_name)
     trial_index += 1
-   
+    
     # if trial_index > n_trials:
       # break
 
@@ -313,17 +325,24 @@ if False:
 
 if False:
   trial = X[0]
-  print(trial.shape) # (22, 200)
-  # pick data from one channel -> shape (200,)
-  ch=trial[5]
+  print(trial.shape) # (22, 240)
+  # pick data from one channel -> shape (240,)
+  ch=trial[ch_picks[0]]
   
-  # segment length is 256 by default, but input length is only 200 here
-  nperseg = 50
+  # segment length is 256 by default, but input length is only 200 here (now 240)
+  nperseg = 40
   f,t,Zxx = signal.stft(ch, fs=sample_frequency, nperseg=nperseg)
   # for a sampling frequency of 200 this yields:
   # f - array of sample frequencies -> shape (33,)
   # t - array of segment times -> shape (8,)
   # Zxx - STFT of x -> shape (33, 8)
+  
+  # find the index to cut off the data for higher frequencies
+  keep_index = np.searchsorted(f, 40)
+  # remove frequencies abouve 40 Hz
+  f = f[:keep_index+1]
+  Zxx = Zxx[:keep_index+1, :]
+  
   # shading should be either nearest or gouraud
   # or flat when making the color map (Zxx) one smaller than t and f:
   cutZxx = Zxx[:-1,:-1]
@@ -340,10 +359,11 @@ if False:
   # plt.savefig("stft.png") # with axis and labels
   # plt.imsave("test.png", np.abs(cutZxx), vmin=0, vmax=2) # data only
   
-  # throw together multiple "images"
   absolutes = np.abs(Zxx)
+  # throw together multiple "images"
   # axis must be 0 or 1 to keep the 2D shape
-  image_data = np.append(absolutes, absolutes, axis=0)
+  # image_data = np.append(absolutes, absolutes, axis=0)
+  image_data = absolutes
   print(image_data.shape)
   plt.imsave("foobar.png", image_data, vmin=0, vmax=2)
 
