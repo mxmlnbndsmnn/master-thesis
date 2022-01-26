@@ -8,14 +8,19 @@ Created on Thu Jan 20 21:03:29 2022
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import tensorflow as tf
 import pathlib
+import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.models import Sequential
+from tensorflow.math import confusion_matrix
+import seaborn as sn
+from sklearn.metrics import precision_score, recall_score
 
+subject_folder = "SubjectC-151204-9ch-cut"
+print(f"Subject folder: {subject_folder}")
 
-data_dir = pathlib.Path(os.path.join("stft_images", "SubjectC-151204-9ch-cut"))
+data_dir = pathlib.Path(os.path.join("stft_images", subject_folder))
 image_count = len(list(data_dir.glob('*/*.png')))
 
 list_ds = tf.data.Dataset.list_files(str(data_dir/'*/*'), shuffle=False)
@@ -31,17 +36,18 @@ num_classes = len(class_names)
 
 # split the dataset
 train_size = int(image_count * 0.8)
-valid_size = int(image_count * 0.1)
+valid_size = int(image_count * 0.2)
 # 80% training
 train_ds = list_ds.take(train_size)
 # 10% validation
 valid_ds = list_ds.skip(train_size).take(valid_size)
 # 10% test
-test_ds = list_ds.skip(train_size+valid_size)
+# test_ds = list_ds.skip(train_size+valid_size)
+test_ds = None
 
 print(f"#Training images: {tf.data.experimental.cardinality(train_ds).numpy()}")
 print(f"#Validation images: {tf.data.experimental.cardinality(valid_ds).numpy()}")
-print(f"#Test images: {tf.data.experimental.cardinality(test_ds).numpy()}")
+# print(f"#Test images: {tf.data.experimental.cardinality(test_ds).numpy()}")
 
 
 def get_label(file_path):
@@ -74,7 +80,17 @@ def process_path(file_path):
 AUTOTUNE = tf.data.AUTOTUNE
 train_ds = train_ds.map(process_path, num_parallel_calls=AUTOTUNE)
 valid_ds = valid_ds.map(process_path, num_parallel_calls=AUTOTUNE)
-test_ds = test_ds.map(process_path, num_parallel_calls=AUTOTUNE)
+# test_ds = test_ds.map(process_path, num_parallel_calls=AUTOTUNE)
+
+
+# store some test data to obtain labels for the confusion matrix
+# use test data only
+# cm_test_ds = test_ds.take(-1)
+# use all data
+cm_full_ds = list_ds.map(process_path, num_parallel_calls=AUTOTUNE).take(-1)
+
+# fetch a single image + label
+# image_batch, label_batch = next(iter(test_ds))
 
 
 def configure_for_performance(ds):
@@ -87,7 +103,7 @@ def configure_for_performance(ds):
 
 train_ds = configure_for_performance(train_ds)
 valid_ds = configure_for_performance(valid_ds)
-test_ds = configure_for_performance(test_ds)
+# test_ds = configure_for_performance(test_ds)
 
 
 # create the model
@@ -114,8 +130,10 @@ model = Sequential([
 
 
 # instantiate an optimizer
+learn_rate = 0.001
+print(f"Learn rate: {learn_rate}")
 optimizer = tf.keras.optimizers.Adagrad(
-  learning_rate=0.001, initial_accumulator_value=0.1, epsilon=1e-07,
+  learning_rate=learn_rate, initial_accumulator_value=0.1, epsilon=1e-07,
   name='Adagrad')
 
 # compile the model
@@ -128,6 +146,7 @@ model.summary()
 
 # train the model
 num_epochs = 80
+print(f"Training for {num_epochs} epochs.")
 history = model.fit(train_ds, validation_data=valid_ds, epochs=num_epochs,
                     verbose=0)
 
@@ -169,7 +188,8 @@ def print_all_scores(score, class_names):
 
 
 # evaluate the model using a test dataset
-if True:
+if False:
+  print(f"Evaluate model on {len(test_ds)} test samples:")
   result = model.evaluate(test_ds)
   result_dict = dict(zip(model.metrics_names, result))
   print(result_dict)
@@ -183,3 +203,66 @@ if False:
     print_all_scores(score, class_names)
 
 
+def print_all_scores(score, class_names):
+  for i,class_name in enumerate(class_names):
+    print(f"{class_name}: {100 * score[i]:10.2f}%")
+
+
+# iterate over the (previously copied) test dataset and predict labels
+# to create a confusion matrix
+if True:
+  use_ds = cm_full_ds
+  # use_ds = cm_test_ds
+  print(f"Create confusion matrix for {len(use_ds)} samples.")
+  cm_samples = []
+  cm_labels = []
+  predicted_labels = []
+  for sample, label in use_ds:
+    # print(sample)
+    # print(label)
+    cm_samples.append(sample)
+    cm_labels.append(label.numpy())
+  
+  predictions = model.predict(np.array(cm_samples))
+  for prediction in predictions:
+    score = tf.nn.softmax(prediction).numpy()
+    # print("Scores:")
+    # print_all_scores(score, class_names)
+    predicted_labels.append(np.argmax(score))
+  
+  cm = confusion_matrix(cm_labels, predicted_labels).numpy()
+  # print(cm)
+
+  ticklabels = [c for c in class_names]
+  sn.heatmap(cm, annot=True, xticklabels=ticklabels, yticklabels=ticklabels,
+             cmap='summer', cbar=False, fmt="d")
+  plt.xlabel("Predicted labels")
+  plt.ylabel("True labels")
+
+  plt.show()
+  
+  # recall = recall_score(cm_labels, predicted_labels, average='macro')
+  # precision = precision_score(cm_labels, predicted_labels, average='macro', zero_division=0)
+  
+  # can remove, same as recall
+  print("Correct/incorrect predictions per class:")
+  for i, row in enumerate(cm):
+    n_correct = 0
+    n_total = 0
+    for j, value in enumerate(row):
+      n_total += value
+      if i == j:
+        n_correct += value
+    correct_percent = 100. * n_correct / n_total
+    print(f"Class {class_names[i]} - {n_correct}/{n_total} ({correct_percent:.2f}%)")
+  
+  tp = cm.diagonal()
+  tp_and_fn = cm.sum(1)
+  tp_and_fp = cm.sum(0)
+  # note: might run into div by zero!
+  precision = tp / tp_and_fp # how many predictions for this class are correct
+  recall = tp / tp_and_fn # how many of the class trials have been found
+  print("Precision:")
+  print(precision)
+  print("Recall:")
+  print(recall)
