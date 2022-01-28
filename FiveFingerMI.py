@@ -28,8 +28,17 @@ import pandas as pd
 eeg_data_folder = "A large MI EEG dataset for EEG BCI"
 
 # subject_data_file = "5F-SubjectB-151110-5St-SGLHand.mat"
-subject_data_file = "5F-SubjectC-151204-5St-SGLHand.mat"
+# subject_data_file = "5F-SubjectC-151204-5St-SGLHand.mat"
+subject_data_file = "5F-SubjectF-151027-5St-SGLHand.mat"
 
+# place where the STFT images should be stored
+# parent folder
+stft_folder = "stft_images"
+
+# per subject folder
+subject_image_folder = "SubjectF-151027-9ch"
+
+# EEG data source
 file_path = os.path.join(eeg_data_folder, subject_data_file)
 
 # the matlab structure is named 'o'
@@ -267,30 +276,44 @@ def create_stft_image_for_trial(trial, freq, path, picks=None, nperseg=40,
   
   # print(image_data.shape)
   img_path = os.path.join(path, file_name)
-  plt.imsave(img_path, image_data, vmin=0, vmax=2)
+  # plt.imsave(img_path, image_data, vmin=0, vmax=2)
+  plt.imsave(img_path, image_data)
 
 
 # working method to create stft images for one subject
 if True:
-  stft_folder = "stft_images"
-  subject_folder = "SubjectC-151204-9ch-cut" # only pick some channels
   # save with prefix to allow to throw multiple groups of images together later
-  file_prefix = "9ch_cut"
-  n_trials = 10
+  file_prefix = "9ch"
+  # n_trials = 10
   trial_index = 1
-  # for now, pick all channels except the last two
-  # stft_ch_picks = list(range(20))
   stft_ch_picks = ch_picks
+  
   for trial, event in zip(trials, events):
-    f_name = f"{file_prefix}_{trial_index:05}.png"
+    
     event_type_string = str(event['event'])
-    path = os.path.join(stft_folder, subject_folder, event_type_string)
-    # ensure that a folder per event type exists
-    # also create parent (subject) folder if needed
-    # ignore if the folder already exists
-    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-    create_stft_image_for_trial(trial, sample_frequency, axis=1, path=path,
-                                picks=stft_ch_picks, file_name=f_name)
+    path = os.path.join(stft_folder, subject_image_folder, event_type_string)
+    # print(trial)
+    # print(trial.shape)
+    
+    # keep the original trial + create more trials by cutting off the extra
+    # frames at the beginning and/or end of each trial
+    frs = [None, forerun_frames, None, forerun_frames]
+    afs = [None, None, -affix_frames, -affix_frames]
+    augmentation_index = 1
+    for fr, af in zip(frs, afs):
+      tr = trial[:, fr:af]
+      # print(tr.shape)
+      
+      f_name = f"{file_prefix}_{trial_index:05}_{augmentation_index:02}.png"
+      
+      # ensure that a folder per event type exists
+      # also create parent (subject) folder if needed
+      # ignore if the folder already exists
+      pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+      create_stft_image_for_trial(tr, sample_frequency, axis=1, path=path,
+                                  picks=stft_ch_picks, file_name=f_name)
+      augmentation_index += 1
+    
     trial_index += 1
     
     # if trial_index > n_trials:

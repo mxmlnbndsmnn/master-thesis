@@ -15,9 +15,10 @@ from tensorflow.keras import layers
 from tensorflow.keras.models import Sequential
 from tensorflow.math import confusion_matrix
 import seaborn as sn
-from sklearn.metrics import precision_score, recall_score
+# from sklearn.metrics import precision_score, recall_score
 
-subject_folder = "SubjectC-151204-9ch-cut"
+# subject_folder = "SubjectC-151204-9ch-cut"
+subject_folder = "SubjectF-151027-9ch"
 print(f"Subject folder: {subject_folder}")
 
 data_dir = pathlib.Path(os.path.join("stft_images", subject_folder))
@@ -28,26 +29,27 @@ list_ds = list_ds.shuffle(image_count, reshuffle_each_iteration=False)
 
 batch_size = 40
 img_height = 9
-img_width = 117
+# with trials of different length, the smalles images are 81x9 in size
+img_width = 81
 
 class_names = np.array(sorted([item.name for item in data_dir.glob('*')]))
 print(f"Classes: {class_names}")
 num_classes = len(class_names)
 
 # split the dataset
-train_size = int(image_count * 0.8)
+train_size = int(image_count * 0.6)
 valid_size = int(image_count * 0.2)
-# 80% training
+# 60% training
 train_ds = list_ds.take(train_size)
-# 10% validation
+# 20% validation
 valid_ds = list_ds.skip(train_size).take(valid_size)
-# 10% test
-# test_ds = list_ds.skip(train_size+valid_size)
-test_ds = None
+# 20% test
+test_ds = list_ds.skip(train_size+valid_size)
+# test_ds = None
 
 print(f"#Training images: {tf.data.experimental.cardinality(train_ds).numpy()}")
 print(f"#Validation images: {tf.data.experimental.cardinality(valid_ds).numpy()}")
-# print(f"#Test images: {tf.data.experimental.cardinality(test_ds).numpy()}")
+print(f"#Test images: {tf.data.experimental.cardinality(test_ds).numpy()}")
 
 
 def get_label(file_path):
@@ -80,7 +82,7 @@ def process_path(file_path):
 AUTOTUNE = tf.data.AUTOTUNE
 train_ds = train_ds.map(process_path, num_parallel_calls=AUTOTUNE)
 valid_ds = valid_ds.map(process_path, num_parallel_calls=AUTOTUNE)
-# test_ds = test_ds.map(process_path, num_parallel_calls=AUTOTUNE)
+test_ds = test_ds.map(process_path, num_parallel_calls=AUTOTUNE)
 
 
 # store some test data to obtain labels for the confusion matrix
@@ -103,7 +105,7 @@ def configure_for_performance(ds):
 
 train_ds = configure_for_performance(train_ds)
 valid_ds = configure_for_performance(valid_ds)
-# test_ds = configure_for_performance(test_ds)
+test_ds = configure_for_performance(test_ds)
 
 
 # create the model
@@ -145,7 +147,7 @@ model.compile(optimizer=optimizer,
 model.summary()
 
 # train the model
-num_epochs = 80
+num_epochs = 40
 print(f"Training for {num_epochs} epochs.")
 history = model.fit(train_ds, validation_data=valid_ds, epochs=num_epochs,
                     verbose=0)
@@ -188,7 +190,7 @@ def print_all_scores(score, class_names):
 
 
 # evaluate the model using a test dataset
-if False:
+if True:
   print(f"Evaluate model on {len(test_ds)} test samples:")
   result = model.evaluate(test_ds)
   result_dict = dict(zip(model.metrics_names, result))
@@ -241,21 +243,7 @@ if True:
 
   plt.show()
   
-  # recall = recall_score(cm_labels, predicted_labels, average='macro')
-  # precision = precision_score(cm_labels, predicted_labels, average='macro', zero_division=0)
-  
-  # can remove, same as recall
-  print("Correct/incorrect predictions per class:")
-  for i, row in enumerate(cm):
-    n_correct = 0
-    n_total = 0
-    for j, value in enumerate(row):
-      n_total += value
-      if i == j:
-        n_correct += value
-    correct_percent = 100. * n_correct / n_total
-    print(f"Class {class_names[i]} - {n_correct}/{n_total} ({correct_percent:.2f}%)")
-  
+  # calculate precision and recall from confusion matrix
   tp = cm.diagonal()
   tp_and_fn = cm.sum(1)
   tp_and_fp = cm.sum(0)
