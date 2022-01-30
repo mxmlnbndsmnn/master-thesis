@@ -10,25 +10,27 @@ import numpy as np
 import os
 import tensorflow as tf
 import pathlib
+import seaborn as sn
 # import sys
 # import sklearn.metrics
 
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.models import Sequential
+from tensorflow.math import confusion_matrix
 
 
-data_dir = pathlib.Path("parts")
+data_dir = pathlib.Path("parts3")
 image_count = len(list(data_dir.glob('*/*.jpg')))
 
 list_ds = tf.data.Dataset.list_files(str(data_dir/'*/*'), shuffle=False)
 list_ds = list_ds.shuffle(image_count, reshuffle_each_iteration=False)
 
-batch_size = 40
-img_height = 256
-img_width = 256
+batch_size = 10
+img_height = 150
+img_width = 300
 
-do_convert_to_grayscale = True
+do_convert_to_grayscale = False
 
 # for f in list_ds.take(5):
 #   print(f.numpy())
@@ -36,17 +38,19 @@ do_convert_to_grayscale = True
 # obtain class names from folder names
 # ['3021' '30359' '3666' '3709' '6233']
 class_names = np.array(sorted([item.name for item in data_dir.glob('*')]))
+num_classes = len(class_names)
+print(f"{image_count} images in {num_classes} classes:")
 print(f"Classes: {class_names}")
 
 # split dataset
 if True:
-  train_size = int(image_count * 0.8)
+  train_size = int(image_count * 0.7)
   valid_size = int(image_count * 0.15)
-  # 80% training
+  # 70% training
   train_ds = list_ds.take(train_size)
   # 15% validation
   valid_ds = list_ds.skip(train_size).take(valid_size)
-  # 5% test
+  # 15% test
   test_ds = list_ds.skip(train_size+valid_size)
   
   print(f"#Training images: {tf.data.experimental.cardinality(train_ds).numpy()}")
@@ -94,9 +98,17 @@ if True:
 #     print("Label: ", label.numpy())
 
 
+# store some test data to obtain labels for the confusion matrix
+# should be done before the configure_for_performance call(?)
+# use test data only
+cm_test_ds = test_ds.take(-1)
+# use all data
+cm_full_ds = list_ds.map(process_path, num_parallel_calls=AUTOTUNE).take(-1)
+
+
 def configure_for_performance(ds):
   ds = ds.cache()
-  ds = ds.shuffle(buffer_size=1000)
+  ds = ds.shuffle(buffer_size=len(ds))
   ds = ds.batch(batch_size)
   ds = ds.prefetch(buffer_size=AUTOTUNE)
   return ds
@@ -109,7 +121,7 @@ if True:
 
 
 # this only works after the performance configuration stuff
-if False:
+if True:
   image_batch, label_batch = next(iter(train_ds))
   plt.figure(figsize=(10, 10))
   for i in range(9):
@@ -120,16 +132,18 @@ if False:
     plt.axis("off")
 
 
-num_classes = len(class_names)
-
 
 # if do_convert_to_grayscale: shape 1 instead of 3
 
 def create_model():
+  num_channels = 3
+  if do_convert_to_grayscale:
+    num_channels = 1
+  
   # data augmentation layer: add slightly altered copies of all images
   data_augmentation = Sequential(
     [
-      layers.RandomFlip("horizontal", input_shape=(img_height, img_width, 1)),
+      layers.RandomFlip("horizontal", input_shape=(img_height, img_width, num_channels)),
       # layers.RandomFlip("horizontal"),
       layers.RandomRotation(0.1),
       layers.RandomZoom(0.1),
@@ -140,30 +154,42 @@ def create_model():
   # note that the input_shape should be provided in the first layer
   model = Sequential([
     # standardize values to be in range [0,1]
-    # layers.Rescaling(1./255, input_shape=(img_height, img_width, 3)),
-    data_augmentation,
+    layers.Rescaling(1./255, input_shape=(img_height, img_width, num_channels)),
+    # data_augmentation,
     # layers.Rescaling(1./255),
     layers.Conv2D(16, 3, padding='same', activation='elu'),
-    layers.MaxPooling2D(),
+    # layers.MaxPooling2D(),
+    # layers.Dropout(0.1),
     layers.Conv2D(32, 3, padding='same', activation='elu'),
     layers.MaxPooling2D(),
+    layers.Dropout(0.1),
     layers.Conv2D(64, 3, padding='same', activation='elu'),
     layers.MaxPooling2D(),
-    layers.Dropout(0.5),
+    layers.Dropout(0.1),
     layers.Flatten(),
     layers.Dense(128, activation='elu'),
     layers.Dense(num_classes)
   ])
+  
+  # last results with this model:
+  # about 90% accuracy, no big difference between valid and train acc
+  # confusion matrix looks good
+  # some errors between 30359 and 3666
+  # note though that the learn rate is low, images are larger -> takes time
   
   return model
 
 
 if True:
   model = create_model()
+  model.summary()
+  
+  learn_rate = 0.0005
+  print(f"Learn rate: {learn_rate}")
   
   # instantiate an optimizer
   optimizer = tf.keras.optimizers.Adagrad(
-    learning_rate=0.001, initial_accumulator_value=0.1, epsilon=1e-07,
+    learning_rate=learn_rate, initial_accumulator_value=0.1, epsilon=1e-07,
     name='Adagrad')
   
   # compile the model
@@ -175,9 +201,10 @@ if True:
   # model.summary()
   
   # train the model
-  num_epochs = 16
+  num_epochs = 30
+  print(f"Training for {num_epochs} epochs.")
   history = model.fit(train_ds, validation_data=valid_ds, epochs=num_epochs,
-                      verbose=0)
+                      verbose=1)
 
 
 # save it to a folder structure
@@ -283,7 +310,7 @@ test_image_paths = list()
 test_image_paths.append(os.path.join("parts", "30359", "20220112_190626_027.jpg"))
 test_image_paths.append(os.path.join("parts", "3021", "20220112_190746_017.jpg"))
 test_image_paths.append(os.path.join("parts", "6249", "00235.jpg"))
-test_image_paths.append(os.path.join("unknown_image.jpg"))
+test_image_paths.append(os.path.join("unknown_image.jpg")) # 3666
 
 for image_path in test_image_paths:
   score = predict_single_image(model, image_path)
@@ -305,6 +332,7 @@ for image_path in test_image_paths:
 
 # evaluate the model using a test dataset
 if True:
+  print(f"Evaluate model on {len(test_ds)} test samples:")
   result = model.evaluate(test_ds)
   result_dict = dict(zip(model.metrics_names, result))
   print(result_dict)
@@ -324,4 +352,66 @@ if False:
   for prediction in predictions:
     score = tf.nn.softmax(prediction).numpy()
     print_class_scores_above(score, class_names, 20)
+
+
+# visualize some images
+# since this ds was not batched, take(1) actually returns one image+label
+if False:
+  plt.figure(figsize=(10, 10))
+  for images, labels in cm_full_ds.skip(9).take(9):
+    for i in range(9):
+      ax = plt.subplot(3, 3, i + 1)
+      plt.imshow(images[i].numpy().astype("uint8"))
+      plt.title(class_names[labels[i]])
+      plt.axis("off")
+
+
+# iterate over the (previously copied) test dataset and predict labels
+# to create a confusion matrix
+def plot_confusion_matrix(dataset, title=None):
+  print(f"Create confusion matrix for {len(dataset)} samples (batches).")
+  cm_samples = []
+  cm_labels = []
+  predicted_labels = []
+  for sample, label in dataset:
+    # print(sample)
+    # print(label)
+    cm_samples.append(sample)
+    cm_labels.append(label.numpy())
+  
+  predictions = model.predict(np.array(cm_samples))
+  for prediction in predictions:
+    score = tf.nn.softmax(prediction).numpy()
+    # print("Scores:")
+    # print_all_scores(score, class_names)
+    predicted_labels.append(np.argmax(score))
+  
+  cm = confusion_matrix(cm_labels, predicted_labels).numpy()
+  # print(cm)
+
+  ticklabels = [c for c in class_names]
+  sn.heatmap(cm, annot=True, xticklabels=ticklabels, yticklabels=ticklabels,
+             cmap='summer', cbar=False, fmt="d")
+  plt.xlabel("Predicted labels")
+  plt.ylabel("True labels")
+  if title is not None:
+    plt.title(title)
+
+  plt.show()
+  
+  # calculate precision and recall from confusion matrix
+  tp = cm.diagonal()
+  tp_and_fn = cm.sum(1)
+  tp_and_fp = cm.sum(0)
+  # note: might run into div by zero!
+  precision = tp / tp_and_fp # how many predictions for this class are correct
+  recall = tp / tp_and_fn # how many of the class trials have been found
+  print("Precision:")
+  print(precision)
+  print("Recall:")
+  print(recall)
+
+
+plot_confusion_matrix(cm_full_ds, title="full set")
+plot_confusion_matrix(cm_test_ds, title="test set")
 

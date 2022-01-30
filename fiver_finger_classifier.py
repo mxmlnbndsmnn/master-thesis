@@ -36,19 +36,16 @@ class_names = np.array(sorted([item.name for item in data_dir.glob('*')]))
 print(f"Classes: {class_names}")
 num_classes = len(class_names)
 
-# split the dataset
-train_size = int(image_count * 0.6)
-valid_size = int(image_count * 0.2)
-# 60% training
+# split the dataset for k-fold cross-validation
+train_size = int(image_count * 0.8)
+test_size = int(image_count * 0.2)
+# 80% training
 train_ds = list_ds.take(train_size)
-# 20% validation
-valid_ds = list_ds.skip(train_size).take(valid_size)
 # 20% test
-test_ds = list_ds.skip(train_size+valid_size)
-# test_ds = None
+test_ds = list_ds.skip(train_size)
 
 print(f"#Training images: {tf.data.experimental.cardinality(train_ds).numpy()}")
-print(f"#Validation images: {tf.data.experimental.cardinality(valid_ds).numpy()}")
+# print(f"#Validation images: {tf.data.experimental.cardinality(valid_ds).numpy()}")
 print(f"#Test images: {tf.data.experimental.cardinality(test_ds).numpy()}")
 
 
@@ -81,7 +78,7 @@ def process_path(file_path):
 # Set `num_parallel_calls` so multiple images are loaded/processed in parallel.
 AUTOTUNE = tf.data.AUTOTUNE
 train_ds = train_ds.map(process_path, num_parallel_calls=AUTOTUNE)
-valid_ds = valid_ds.map(process_path, num_parallel_calls=AUTOTUNE)
+# valid_ds = valid_ds.map(process_path, num_parallel_calls=AUTOTUNE)
 test_ds = test_ds.map(process_path, num_parallel_calls=AUTOTUNE)
 
 
@@ -95,18 +92,21 @@ cm_full_ds = list_ds.map(process_path, num_parallel_calls=AUTOTUNE).take(-1)
 # image_batch, label_batch = next(iter(test_ds))
 
 
+# how does this interfere with k-fold cross-validation splits?
 def configure_for_performance(ds):
   ds = ds.cache()
-  ds = ds.shuffle(buffer_size=1000)
-  ds = ds.batch(batch_size)
+  ds = ds.shuffle(buffer_size=-1)
+  # ds = ds.batch(batch_size)
   ds = ds.prefetch(buffer_size=AUTOTUNE)
   return ds
 
 
 train_ds = configure_for_performance(train_ds)
-valid_ds = configure_for_performance(valid_ds)
+# valid_ds = configure_for_performance(valid_ds)
 test_ds = configure_for_performance(test_ds)
 
+
+# k-fold model training, TODO
 
 # create the model
 model = Sequential([
