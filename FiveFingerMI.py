@@ -166,7 +166,7 @@ if len(events) > 0 and False:
 
 # create the core mne data structure from scratch
 # https://mne.tools/dev/auto_tutorials/simulation/10_array_objs.html#tut-creating-data-structures
-if False:
+if True:
     # by creating an info object ...
     # ch_types = ['eeg'] * len(ch_names)
     ch_types = 'eeg'
@@ -209,13 +209,13 @@ if False:
     # but the structure is weird
     
     # data is in microvolts, not volts!
-    scalings = dict(eeg=4)
+    scalings = dict(eeg=8)
     raw_copy.plot(show_scrollbars=False, show_scalebars=False,
-                  duration=6, start=start_time-1, scalings = scalings)
+                  duration=10, start=start_time-1, scalings = scalings)
 
 
 # cut trials from the full eeg data
-if True:
+if False:
     # reshape eeg data -> n_channels x n_times
     transposed_eeg_data = eeg_data.transpose()
     trials = list()
@@ -281,7 +281,7 @@ def create_stft_image_for_trial(trial, freq, path, picks=None, nperseg=40,
 
 
 # working method to create stft images for one subject
-if True:
+if False:
   # save with prefix to allow to throw multiple groups of images together later
   file_prefix = "9ch"
   # n_trials = 10

@@ -36,18 +36,6 @@ class_names = np.array(sorted([item.name for item in data_dir.glob('*')]))
 print(f"Classes: {class_names}")
 num_classes = len(class_names)
 
-# split the dataset for k-fold cross-validation
-train_size = int(image_count * 0.8)
-test_size = int(image_count * 0.2)
-# 80% training
-train_ds = list_ds.take(train_size)
-# 20% test
-test_ds = list_ds.skip(train_size)
-
-print(f"#Training images: {tf.data.experimental.cardinality(train_ds).numpy()}")
-# print(f"#Validation images: {tf.data.experimental.cardinality(valid_ds).numpy()}")
-print(f"#Test images: {tf.data.experimental.cardinality(test_ds).numpy()}")
-
 
 def get_label(file_path):
     # Convert the path to a list of path components
@@ -77,9 +65,6 @@ def process_path(file_path):
 
 # Set `num_parallel_calls` so multiple images are loaded/processed in parallel.
 AUTOTUNE = tf.data.AUTOTUNE
-train_ds = train_ds.map(process_path, num_parallel_calls=AUTOTUNE)
-# valid_ds = valid_ds.map(process_path, num_parallel_calls=AUTOTUNE)
-test_ds = test_ds.map(process_path, num_parallel_calls=AUTOTUNE)
 
 
 # store some test data to obtain labels for the confusion matrix
@@ -88,69 +73,14 @@ test_ds = test_ds.map(process_path, num_parallel_calls=AUTOTUNE)
 # use all data
 cm_full_ds = list_ds.map(process_path, num_parallel_calls=AUTOTUNE).take(-1)
 
-# fetch a single image + label
-# image_batch, label_batch = next(iter(test_ds))
-
 
 # how does this interfere with k-fold cross-validation splits?
 def configure_for_performance(ds):
   ds = ds.cache()
-  ds = ds.shuffle(buffer_size=-1)
-  # ds = ds.batch(batch_size)
+  ds = ds.shuffle(buffer_size=len(ds))
+  ds = ds.batch(batch_size)
   ds = ds.prefetch(buffer_size=AUTOTUNE)
   return ds
-
-
-train_ds = configure_for_performance(train_ds)
-# valid_ds = configure_for_performance(valid_ds)
-test_ds = configure_for_performance(test_ds)
-
-
-# k-fold model training, TODO
-
-# create the model
-model = Sequential([
-  # standardize values to be in range [0,1]
-  layers.Rescaling(1./255, input_shape=(img_height, img_width, 3)),
-  # layers.Rescaling(1./255),
-  # data_augmentation:
-  # layers.RandomZoom(-0.2),
-  # layers.RandomTranslation(0., (-0.1, 0.1)),
-  # layers.RandomCrop(img_height, int(img_width*0.8)),
-  
-  layers.Conv2D(16, 3, padding='same', activation='elu'),
-  # layers.MaxPooling2D(),
-  # layers.Dropout(0.1),
-  layers.Conv2D(32, 3, padding='same', activation='elu'),
-  layers.MaxPooling2D(),
-  layers.Dropout(0.1),
-  layers.Flatten(),
-  # layers.Dense(128, activation='elu'),
-  layers.Dense(32, activation='elu'),
-  layers.Dense(num_classes)
-])
-
-
-# instantiate an optimizer
-learn_rate = 0.001
-print(f"Learn rate: {learn_rate}")
-optimizer = tf.keras.optimizers.Adagrad(
-  learning_rate=learn_rate, initial_accumulator_value=0.1, epsilon=1e-07,
-  name='Adagrad')
-
-# compile the model
-model.compile(optimizer=optimizer,
-              loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-              metrics=['accuracy'])
-
-# view the layers of the model
-model.summary()
-
-# train the model
-num_epochs = 40
-print(f"Training for {num_epochs} epochs.")
-history = model.fit(train_ds, validation_data=valid_ds, epochs=num_epochs,
-                    verbose=0)
 
 
 # visualize training results
@@ -178,8 +108,6 @@ def visualize_training(history, num_epochs):
   plt.show()
 
 
-visualize_training(history, num_epochs)
-
 
 # evaluation
 
@@ -188,26 +116,108 @@ def print_all_scores(score, class_names):
     print(f"{class_name}: {100 * score[i]:10.2f}%")
 
 
-
-# evaluate the model using a test dataset
-if True:
-  print(f"Evaluate model on {len(test_ds)} test samples:")
-  result = model.evaluate(test_ds)
-  result_dict = dict(zip(model.metrics_names, result))
-  print(result_dict)
-
-
-# predict on a test dataset (details)
-if False:
-  predictions = model.predict(test_ds)
-  for prediction in predictions:
-    score = tf.nn.softmax(prediction).numpy()
-    print_all_scores(score, class_names)
-
-
 def print_all_scores(score, class_names):
   for i,class_name in enumerate(class_names):
     print(f"{class_name}: {100 * score[i]:10.2f}%")
+
+
+
+# split the dataset for k-fold cross-validation
+k = 4
+valid_size = int(image_count / k)
+print(f"Create {k} folds of size {valid_size}")
+
+for i in range(k):
+  print(f"Fold {i+1}:")
+  train_ds = list_ds.take(i*valid_size).concatenate(list_ds.skip((i+1)*valid_size))
+  valid_ds = list_ds.skip(i*valid_size).take(valid_size)
+  
+  print(f"#Training images: {tf.data.experimental.cardinality(train_ds).numpy()}")
+  print(f"#Validation images: {tf.data.experimental.cardinality(valid_ds).numpy()}")
+  # print(f"#Test images: {tf.data.experimental.cardinality(test_ds).numpy()}")
+  
+  
+  train_ds = train_ds.map(process_path, num_parallel_calls=AUTOTUNE)
+  valid_ds = valid_ds.map(process_path, num_parallel_calls=AUTOTUNE)
+  # test_ds = test_ds.map(process_path, num_parallel_calls=AUTOTUNE)
+  
+  
+  train_ds = configure_for_performance(train_ds)
+  valid_ds = configure_for_performance(valid_ds)
+  # test_ds = configure_for_performance(test_ds)
+  
+  # fetch a single image + label - not working?
+  # only one return value that contains a tensor (img) and a 2nd tensor (label)
+  # image_batch, label_batch = next(iter(valid_ds))
+  # print(f"1st label: {label_batch.numpy()}")
+  
+  
+  # create the model
+  model = Sequential([
+    # standardize values to be in range [0,1]
+    layers.Rescaling(1./255, input_shape=(img_height, img_width, 3)),
+    # layers.Rescaling(1./255),
+    # data_augmentation:
+    # layers.RandomZoom(-0.2),
+    # layers.RandomTranslation(0., (-0.1, 0.1)),
+    # layers.RandomCrop(img_height, int(img_width*0.8)),
+    
+    layers.Conv2D(16, 3, padding='same', activation='elu'),
+    # layers.MaxPooling2D(),
+    # layers.Dropout(0.1),
+    layers.Conv2D(32, 3, padding='same', activation='elu'),
+    layers.MaxPooling2D(),
+    layers.Dropout(0.1),
+    layers.Flatten(),
+    # layers.Dense(128, activation='elu'),
+    layers.Dense(32, activation='elu'),
+    layers.Dense(num_classes)
+  ])
+  
+  
+  # instantiate an optimizer
+  learn_rate = 0.001
+  print(f"Learn rate: {learn_rate}")
+  optimizer = tf.keras.optimizers.Adagrad(
+    learning_rate=learn_rate, initial_accumulator_value=0.1, epsilon=1e-07,
+    name='Adagrad')
+  
+  # compile the model
+  model.compile(optimizer=optimizer,
+                loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+                metrics=['accuracy'])
+  
+  # view the layers of the model
+  model.summary()
+  
+  # train the model
+  num_epochs = 10
+  print(f"Training for {num_epochs} epochs.")
+  history = model.fit(train_ds, validation_data=valid_ds, epochs=num_epochs,
+                      verbose=0)
+  
+  
+  visualize_training(history, num_epochs)
+
+
+
+# evaluate the model using a test dataset
+# not needed when using CV
+# if False:
+#   print(f"Evaluate model on {len(test_ds)} test samples:")
+#   result = model.evaluate(test_ds)
+#   result_dict = dict(zip(model.metrics_names, result))
+#   print(result_dict)
+
+
+# predict on a test dataset (details)
+# not needed when using CV
+# if False:
+#   predictions = model.predict(test_ds)
+#   for prediction in predictions:
+#     score = tf.nn.softmax(prediction).numpy()
+#     print_all_scores(score, class_names)
+
 
 
 # iterate over the (previously copied) test dataset and predict labels
