@@ -27,8 +27,9 @@ list_ds = tf.data.Dataset.list_files(str(data_dir/'*/*'), shuffle=False)
 list_ds = list_ds.shuffle(image_count, reshuffle_each_iteration=False)
 
 batch_size = 10
-img_height = 150
-img_width = 300
+# H x W could be 150x300
+img_height = 100
+img_width = 120
 
 do_convert_to_grayscale = False
 
@@ -184,7 +185,8 @@ if True:
   model = create_model()
   model.summary()
   
-  learn_rate = 0.0005
+  # 0.001 seems a bit too high? - val acc jumps up and down
+  learn_rate = 0.0008
   print(f"Learn rate: {learn_rate}")
   
   # instantiate an optimizer
@@ -204,7 +206,7 @@ if True:
   num_epochs = 30
   print(f"Training for {num_epochs} epochs.")
   history = model.fit(train_ds, validation_data=valid_ds, epochs=num_epochs,
-                      verbose=1)
+                      verbose=0)
 
 
 # save it to a folder structure

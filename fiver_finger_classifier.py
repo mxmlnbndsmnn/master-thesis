@@ -17,8 +17,8 @@ from tensorflow.math import confusion_matrix
 import seaborn as sn
 # from sklearn.metrics import precision_score, recall_score
 
-# subject_folder = "SubjectC-151204-9ch-cut"
-subject_folder = "SubjectF-151027-9ch"
+subject_folder = "SubjectC-151204-9ch-cut"
+# subject_folder = "SubjectF-151027-9ch"
 print(f"Subject folder: {subject_folder}")
 
 data_dir = pathlib.Path(os.path.join("stft_images", subject_folder))
@@ -27,15 +27,16 @@ image_count = len(list(data_dir.glob('*/*.png')))
 list_ds = tf.data.Dataset.list_files(str(data_dir/'*/*'), shuffle=False)
 list_ds = list_ds.shuffle(image_count, reshuffle_each_iteration=False)
 
-batch_size = 40
+batch_size = 20
 img_height = 9
-# with trials of different length, the smalles images are 81x9 in size
-img_width = 81
+# with trials of different length, the smallest images are 81x9 in size
+img_width = 117 #81
 
 class_names = np.array(sorted([item.name for item in data_dir.glob('*')]))
 print(f"Classes: {class_names}")
 num_classes = len(class_names)
 
+###############################################################################
 
 def get_label(file_path):
     # Convert the path to a list of path components
@@ -70,7 +71,7 @@ AUTOTUNE = tf.data.AUTOTUNE
 # store some test data to obtain labels for the confusion matrix
 # use test data only
 # cm_test_ds = test_ds.take(-1)
-# use all data
+# OR use all data
 cm_full_ds = list_ds.map(process_path, num_parallel_calls=AUTOTUNE).take(-1)
 
 
@@ -82,6 +83,7 @@ def configure_for_performance(ds):
   ds = ds.prefetch(buffer_size=AUTOTUNE)
   return ds
 
+###############################################################################
 
 # visualize training results
 def visualize_training(history, num_epochs):
@@ -108,6 +110,7 @@ def visualize_training(history, num_epochs):
   plt.show()
 
 
+###############################################################################
 
 # evaluation
 
@@ -121,13 +124,72 @@ def print_all_scores(score, class_names):
     print(f"{class_name}: {100 * score[i]:10.2f}%")
 
 
+# iterate over the (previously copied) test dataset and predict labels
+# to create a confusion matrix
+def plot_confusion_matrix(dataset, title=None):
+  print(f"Create confusion matrix for {len(dataset)} samples.")
+  cm_samples = []
+  cm_labels = []
+  predicted_labels = []
+  for sample, label in dataset:
+    # print(sample)
+    # print(label)
+    cm_samples.append(sample)
+    cm_labels.append(label.numpy())
+  
+  predictions = model.predict(np.array(cm_samples))
+  for prediction in predictions:
+    score = tf.nn.softmax(prediction).numpy()
+    # print("Scores:")
+    # print_all_scores(score, class_names)
+    predicted_labels.append(np.argmax(score))
+  
+  cm = confusion_matrix(cm_labels, predicted_labels).numpy()
+  # print(cm)
+
+  ticklabels = [c for c in class_names]
+  sn.heatmap(cm, annot=True, xticklabels=ticklabels, yticklabels=ticklabels,
+             cmap='summer', cbar=False, fmt="d")
+  plt.xlabel("Predicted labels")
+  plt.ylabel("True labels")
+  if title is not None:
+    plt.title(title)
+  plt.show()
+  
+  # calculate precision and recall from confusion matrix
+  tp = cm.diagonal()
+  tp_and_fn = cm.sum(1)
+  tp_and_fp = cm.sum(0)
+  # note: might run into div by zero!
+  precision = tp / tp_and_fp # how many predictions for this class are correct
+  recall = tp / tp_and_fn # how many of the class trials have been found
+  f_score = []
+  print("Precision:")
+  print(precision)
+  print("Recall:")
+  print(recall)
+  for pr, re in zip(precision, recall):
+    f1 = 0
+    if pr > 0 or re > 0:
+      f1 = 2 * (pr*re) / (pr+re)
+    f_score.append(f1)
+  print("F1 score:")
+  print(f_score)
+
+
+###############################################################################
 
 # split the dataset for k-fold cross-validation
-k = 4
+k = 5
 valid_size = int(image_count / k)
 print(f"Create {k} folds of size {valid_size}")
 
+# calculate the average metrics
+all_acc_train = []
+all_acc_valid = []
+
 for i in range(k):
+  print("-"*80)
   print(f"Fold {i+1}:")
   train_ds = list_ds.take(i*valid_size).concatenate(list_ds.skip((i+1)*valid_size))
   valid_ds = list_ds.skip(i*valid_size).take(valid_size)
@@ -164,8 +226,14 @@ for i in range(k):
     
     layers.Conv2D(16, 3, padding='same', activation='elu'),
     # layers.MaxPooling2D(),
-    # layers.Dropout(0.1),
+    layers.Dropout(0.1),
     layers.Conv2D(32, 3, padding='same', activation='elu'),
+    # layers.MaxPooling2D(),
+    layers.Dropout(0.1),
+    layers.Conv2D(64, 3, padding='same', activation='elu'),
+    layers.MaxPooling2D(),
+    layers.Dropout(0.1),
+    layers.Conv2D(128, 3, padding='same', activation='elu'),
     layers.MaxPooling2D(),
     layers.Dropout(0.1),
     layers.Flatten(),
@@ -191,15 +259,40 @@ for i in range(k):
   model.summary()
   
   # train the model
-  num_epochs = 10
+  num_epochs = 60
   print(f"Training for {num_epochs} epochs.")
   history = model.fit(train_ds, validation_data=valid_ds, epochs=num_epochs,
                       verbose=0)
   
   
   visualize_training(history, num_epochs)
+  
+  # get the most recent accuracy for training and validation
+  # acc_train = history.history['accuracy'][-1]
+  # acc_valid = history.history['val_accuracy'][-1]
+  
+  # alt: get the highest accuracy for training and validation
+  acc_train = np.array(history.history['accuracy']).max()
+  acc_valid = np.array(history.history['val_accuracy']).max()
+  
+  all_acc_train.append(acc_train)
+  all_acc_valid.append(acc_valid)
+  
+  cm_title = f"Fold {i+1}"
+  plot_confusion_matrix(cm_full_ds, title=cm_title)
 
 
+# get the mean accuracy and standard deviation from all folds
+all_acc_train = np.array(all_acc_train)
+all_acc_valid = np.array(all_acc_valid)
+acc_mean_train = all_acc_train.mean()
+acc_std_train = all_acc_train.std()
+acc_mean_valid = all_acc_valid.mean()
+acc_std_valid = all_acc_valid.std()
+print(f"Mean accuracy (train) is {acc_mean_train} and STD is {acc_std_train}")
+print(f"Mean accuracy (valid) is {acc_mean_valid} and STD is {acc_std_valid}")
+# reminder: arithmetic mean = average
+# but there are other types of mean...
 
 # evaluate the model using a test dataset
 # not needed when using CV
@@ -220,47 +313,6 @@ for i in range(k):
 
 
 
-# iterate over the (previously copied) test dataset and predict labels
-# to create a confusion matrix
-if True:
-  use_ds = cm_full_ds
-  # use_ds = cm_test_ds
-  print(f"Create confusion matrix for {len(use_ds)} samples.")
-  cm_samples = []
-  cm_labels = []
-  predicted_labels = []
-  for sample, label in use_ds:
-    # print(sample)
-    # print(label)
-    cm_samples.append(sample)
-    cm_labels.append(label.numpy())
-  
-  predictions = model.predict(np.array(cm_samples))
-  for prediction in predictions:
-    score = tf.nn.softmax(prediction).numpy()
-    # print("Scores:")
-    # print_all_scores(score, class_names)
-    predicted_labels.append(np.argmax(score))
-  
-  cm = confusion_matrix(cm_labels, predicted_labels).numpy()
-  # print(cm)
+# plot_confusion_matrix(cm_full_ds)
+# plot_confusion_matrix(cm_test_ds)
 
-  ticklabels = [c for c in class_names]
-  sn.heatmap(cm, annot=True, xticklabels=ticklabels, yticklabels=ticklabels,
-             cmap='summer', cbar=False, fmt="d")
-  plt.xlabel("Predicted labels")
-  plt.ylabel("True labels")
-
-  plt.show()
-  
-  # calculate precision and recall from confusion matrix
-  tp = cm.diagonal()
-  tp_and_fn = cm.sum(1)
-  tp_and_fp = cm.sum(0)
-  # note: might run into div by zero!
-  precision = tp / tp_and_fp # how many predictions for this class are correct
-  recall = tp / tp_and_fn # how many of the class trials have been found
-  print("Precision:")
-  print(precision)
-  print("Recall:")
-  print(recall)
