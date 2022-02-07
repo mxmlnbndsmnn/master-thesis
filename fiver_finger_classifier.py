@@ -17,8 +17,8 @@ from tensorflow.math import confusion_matrix
 import seaborn as sn
 # from sklearn.metrics import precision_score, recall_score
 
-subject_folder = "SubjectC-151204-9ch-cut"
-# subject_folder = "SubjectF-151027-9ch"
+# subject_folder = "SubjectC-151204-9ch-cut"
+subject_folder = "SubjectF-160210-9ch-HFREQ_2"
 print(f"Subject folder: {subject_folder}")
 
 data_dir = pathlib.Path(os.path.join("stft_images", subject_folder))
@@ -28,9 +28,9 @@ list_ds = tf.data.Dataset.list_files(str(data_dir/'*/*'), shuffle=False)
 list_ds = list_ds.shuffle(image_count, reshuffle_each_iteration=False)
 
 batch_size = 20
-img_height = 9
-# with trials of different length, the smallest images are 81x9 in size
-img_width = 117 #81
+# with trials of different length, the images have different sizes too!
+img_height = 27
+img_width = 41
 
 class_names = np.array(sorted([item.name for item in data_dir.glob('*')]))
 print(f"Classes: {class_names}")

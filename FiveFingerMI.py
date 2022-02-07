@@ -23,54 +23,29 @@ from skorch.helper import predefined_split
 from sklearn.model_selection import train_test_split
 import pandas as pd
 
+from eeg_data_loader import eeg_data_loader
+from create_stft_image_for_trial import create_stft_image_for_trial, plot_trial_stft
 
-# def main():
+
 eeg_data_folder = "A large MI EEG dataset for EEG BCI"
 
 # subject_data_file = "5F-SubjectB-151110-5St-SGLHand.mat"
 # subject_data_file = "5F-SubjectC-151204-5St-SGLHand.mat"
-subject_data_file = "5F-SubjectF-151027-5St-SGLHand.mat"
+# subject_data_file = "5F-SubjectF-151027-5St-SGLHand.mat"
+subject_data_file = "5F-SubjectF-160210-5St-SGLHand-HFREQ.mat"
 
 # place where the STFT images should be stored
 # parent folder
 stft_folder = "stft_images"
 
 # per subject folder
-subject_image_folder = "SubjectF-151027-9ch"
+subject_image_folder = "SubjectF-160210-9ch-HFREQ_2"
 
 # EEG data source
-file_path = os.path.join(eeg_data_folder, subject_data_file)
+subject_data_path = os.path.join(eeg_data_folder, subject_data_file)
 
-# the matlab structure is named 'o'
-mat_data = loadmat(file_path)['o']
-# print(mat_data)
-
-# number of samples
-num_samples = mat_data['nS'][0][0][0][0]
-
-# sample frequency is also the same for the entire dataset
-sample_frequency = mat_data['sampFreq'][0][0][0][0]
-
-# key fields are: id, nS (num of EEG signal sampes), sampFreq, marker and data
-# mat_data[0][0]["data"].shape as well as mat_data['data'][0][0].shape
-# outputs (724600, 22)
-# -> num samples is 724600 and 22 measured voltage time-series from
-# 19 electrodes + 2 ground leads (A1, A2) + 1 synch channel (X3)
-# marker codes: 1...5 for thumb ... pinky
-
-# store the marker list in a file
-marker_ugly = mat_data['marker'].item()
-# to access each entry in the marker file one must use marker[i][0]
-# so let's convert it to a flat list
-# marker = [marker_ugly[i][0] for i in range(num_samples)]
-# alternative method using transpose
-marker = marker_ugly.transpose()[0]
-# savetxt(os.path.join('csvs','marker.csv'), marker, fmt='%d', delimiter=',')
-
-# store the eeg data in a file
-# shape is (724600, 22)
-eeg_data = mat_data['data'].item()
-# savetxt(os.path.join('csvs','eeg_data.csv'), eeg_data, delimiter=',')
+eeg_data_loader_instance = eeg_data_loader()
+eeg_data = eeg_data_loader_instance.load_eeg_from_mat(subject_data_path)
 
 # channel names
 ch_names = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'O1', 'O2',
@@ -83,52 +58,11 @@ ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
 # print([ch_names[i] for i in ch_picks])
 
 
-# find all events of a marker switching from 0 to >0
-def find_all_events(marker) -> list:
-
-    hits = list()
-    index = 0
-    while True:
-        start_i = find_next_event_start(marker, index)
-        if start_i < 0:
-            break
-
-        stop_i = find_next_event_stop(marker, start_i+1)
-        if stop_i < 0:
-            break
-        hit = dict()
-        hit['start'] = start_i
-        hit['stop'] = stop_i
-        hit['event'] = marker[start_i]
-        hits.append(hit)
-        # print("Found event:")
-        # print(hit)
-
-        # continue from last event end
-        index = stop_i+1
-
-    return hits
-
-
-def find_next_event_stop(marker, start=0):
-    # careful: the start parameter in enumerate does NOT work like the start value in range
-    # it only acts as an offset for the index, but always starts with the first item!
-    # for i, m in enumerate(marker, start):
-    for i in range(start, len(marker)):
-        if marker[i] == 0:
-            return i-1
-    return -1
-
-
-def find_next_event_start(marker, start=0):
-    for i in range(start, len(marker)):
-        if marker[i] > 0:
-            return i
-    return -1
-
-
 # each item in this list is a dict containing start + stop index and event type
-events = find_all_events(marker)
+events = eeg_data_loader_instance.find_all_events()
+
+sample_frequency = eeg_data_loader_instance.sample_frequency
+num_samples = eeg_data_loader_instance.num_samples
 
 
 # plot raw eeg data
@@ -166,7 +100,7 @@ if len(events) > 0 and False:
 
 # create the core mne data structure from scratch
 # https://mne.tools/dev/auto_tutorials/simulation/10_array_objs.html#tut-creating-data-structures
-if True:
+if False:
     # by creating an info object ...
     # ch_types = ['eeg'] * len(ch_names)
     ch_types = 'eeg'
@@ -214,74 +148,19 @@ if True:
                   duration=10, start=start_time-1, scalings = scalings)
 
 
-# cut trials from the full eeg data
-if False:
-    # reshape eeg data -> n_channels x n_times
-    transposed_eeg_data = eeg_data.transpose()
-    trials = list()
-    y = list()
-    # input_window_samples = 200
-    
-    # start a bit earlier + extend
-    forerun_frames = int(sample_frequency * 0.2)
-    affix_frames = int(sample_frequency * 0.2)
-    # trial duration is actually variable, but cannot be determined precisely anyway
-    trial_frames = 200
-    for event in events:
-        start_i = event['start'] - forerun_frames
-        # stop_i = event['stop']
-        stop_i = start_i + trial_frames + affix_frames
-        trial = np.array([[ch[i] for i in range(start_i, stop_i)] for ch in transposed_eeg_data])
-        
-        trials.append(trial)
-        
-        # event type (1-5)
-        y.append(event['event'])
-    
-    # X must be: list of pre-cut trials as n_trials x n_channels x n_times
-    X = np.array(trials)
-    # y must be: targets corresponding to the trials
-    y = np.array(y)
-
-# can get min and max values in an array by np.amin and np.amax
-
-# TODO: band pass filter - how to?
-# use multiple channels and concatenate their stft result into one image per trial
+trials, labels = eeg_data_loader_instance.get_trials_x_and_y()
 
 
-# for a single trial; calculate the stft and create an image
-# save it to a folder - one folder per event type (1-5)
-def create_stft_image_for_trial(trial, freq, path, picks=None, nperseg=40,
-                                axis=0, file_name="stft.png"):
-  channels = None
-  if picks is not None:
-    channels = [trial[ch_index] for ch_index in picks]
-  else:
-    channels = trial
-  
-  image_data = None
-  for ch in channels:
-    f,t,Zxx = signal.stft(ch, fs=freq, nperseg=nperseg)
-    absolutes = np.abs(Zxx)
-    
-    # remove frequencies abouve 40Hz
-    keep_index = np.searchsorted(f, 40)
-    # f = f[:keep_index+1]
-    absolutes = absolutes[:keep_index+1, :]
-    
-    if image_data is not None:
-      image_data = np.append(image_data, absolutes, axis=axis)
-    else:
-      image_data = absolutes
-  
-  # print(image_data.shape)
-  img_path = os.path.join(path, file_name)
-  # plt.imsave(img_path, image_data, vmin=0, vmax=2)
-  plt.imsave(img_path, image_data)
+# X must be: list of pre-cut trials as n_trials x n_channels x n_times
+X = np.array(trials)
+# y must be: targets corresponding to the trials
+y = np.array(labels)
+# note: can get min and max values in an array by np.amin and np.amax
 
 
 # working method to create stft images for one subject
-if False:
+# use multiple channels and concatenate their stft result into one image per trial
+if True:
   # save with prefix to allow to throw multiple groups of images together later
   file_prefix = "9ch"
   # n_trials = 10
@@ -297,6 +176,8 @@ if False:
     
     # keep the original trial + create more trials by cutting off the extra
     # frames at the beginning and/or end of each trial
+    forerun_frames = int(sample_frequency * 0.2)
+    affix_frames = int(sample_frequency * 0.2)
     frs = [None, forerun_frames, None, forerun_frames]
     afs = [None, None, -affix_frames, -affix_frames]
     augmentation_index = 1
@@ -310,7 +191,7 @@ if False:
       # also create parent (subject) folder if needed
       # ignore if the folder already exists
       pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-      create_stft_image_for_trial(tr, sample_frequency, axis=1, path=path,
+      create_stft_image_for_trial(tr, sample_frequency, axis=0, path=path,
                                   picks=stft_ch_picks, file_name=f_name)
       augmentation_index += 1
     
@@ -320,75 +201,13 @@ if False:
       # break
 
 
-# does not work, output images are invalid
-# values in raw_data are totally different from those in trials obtained from
-# transposed_eeg_data (above)
-if False:
-  stft_folder = "stft_images"
-  subject_folder = "SubjectC-151204-test2"
-  trial_index = 1
-  n_trials = 10
-  # for now, pick all channels except the last two
-  stft_ch_picks = list(range(20))
-  for event in events:
-    trial = [raw_data[ch][1] for ch in range(20)]
-    f_name = f"{trial_index:05}.png"
-    event_type_string = str(event['event'])
-    path = os.path.join(stft_folder, subject_folder, event_type_string)
-    # ensure that a folder per event type exists
-    # also create parent (subject) folder if needed
-    # ignore if the folder already exists
-    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-    create_stft_image_for_trial(trial, sample_frequency, axis=1, path=path,
-                                picks=stft_ch_picks, file_name=f_name)
-    trial_index += 1
-    if trial_index > n_trials:
-      break
-
-
-if False:
-  trial = X[0]
-  print(trial.shape) # (22, 240)
-  # pick data from one channel -> shape (240,)
-  ch=trial[ch_picks[0]]
-  
-  # segment length is 256 by default, but input length is only 200 here (now 240)
-  nperseg = 40
-  f,t,Zxx = signal.stft(ch, fs=sample_frequency, nperseg=nperseg)
-  # for a sampling frequency of 200 this yields:
-  # f - array of sample frequencies -> shape (33,)
-  # t - array of segment times -> shape (8,)
-  # Zxx - STFT of x -> shape (33, 8)
-  
-  # find the index to cut off the data for higher frequencies
-  keep_index = np.searchsorted(f, 40)
-  # remove frequencies abouve 40 Hz
-  f = f[:keep_index+1]
-  Zxx = Zxx[:keep_index+1, :]
-  
-  # shading should be either nearest or gouraud
-  # or flat when making the color map (Zxx) one smaller than t and f:
-  cutZxx = Zxx[:-1,:-1]
-  plt.pcolormesh(t, f, np.abs(cutZxx), vmin=0, vmax=2, shading='flat')
-  plt.title(f'STFT Magnitude (segment length: {nperseg})')
-  plt.ylabel('Frequency [Hz]')
-  plt.xlabel('Time [sec]')
-  # plt.show() # ? not needed; do not use for savefig to work!
-  
-  # why does it look like more than 1 second? because of the segment length?
-  # yep, apparently since it fits when using dividers of 200 like 50
-  
-  # save the result to an image file
-  # plt.savefig("stft.png") # with axis and labels
-  # plt.imsave("test.png", np.abs(cutZxx), vmin=0, vmax=2) # data only
-  
-  absolutes = np.abs(Zxx)
-  # throw together multiple "images"
-  # axis must be 0 or 1 to keep the 2D shape
-  # image_data = np.append(absolutes, absolutes, axis=0)
-  image_data = absolutes
-  print(image_data.shape)
-  plt.imsave("foobar.png", image_data, vmin=0, vmax=2)
+# plot a single trial stft for one channel
+ch=trial[ch_picks[0]]
+plot_trial_stft(ch, nperseg=40, sample_frequency=sample_frequency,
+                file_name="foobar40.png")
+plot_trial_stft(ch, nperseg=100,
+                sample_frequency=sample_frequency,
+                file_name="foobar100.png")
 
 
 # another test: use mne.create_from_mne_raw
