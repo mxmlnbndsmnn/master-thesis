@@ -214,17 +214,16 @@ if True:
       torch.backends.cudnn.benchmark = True
   
   print("Creating model...")
-  # input_window_samples = len(train_set) # ?
   input_window_samples = train_set[0][0].shape[1] # shape is (22,240)
-  model = ShallowFBCSPNet(
-  # model = Deep4Net(
+  # model = ShallowFBCSPNet(
+  model = Deep4Net(
       len(ch_names), # number of channels
       5, # number of classes
-      input_window_samples=input_window_samples,
-      final_conv_length='auto',
-      # final_conv_length=10,
-      # pool_time_length=2,
-      # pool_time_stride=2,
+      input_window_samples=sample_frequency * 2,
+      # final_conv_length='auto',
+      final_conv_length=6,
+      pool_time_length=2,
+      pool_time_stride=2,
   )
   
   # Send model to GPU (if possible)
