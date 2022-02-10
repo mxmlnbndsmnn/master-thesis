@@ -26,6 +26,7 @@ class eeg_data_loader:
     self.marker = marker_ugly.transpose()[0]
     self.num_samples = mat_data['nS'][0][0][0][0]
     self.sample_frequency = mat_data['sampFreq'][0][0][0][0]
+    return self.eeg_data
   
   
   def save_eeg_data_to_csv(self, file_path):
@@ -78,6 +79,7 @@ class eeg_data_loader:
   
   # cut trials from the full eeg data
   # return a list of trial data and a list of labels
+  # TODO: make forefun and affix frames optional parameters
   def get_trials_x_and_y(self):
     # reshape eeg data -> n_channels x n_times
     transposed_eeg_data = self.eeg_data.transpose()
