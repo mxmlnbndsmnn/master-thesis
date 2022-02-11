@@ -8,6 +8,7 @@ raw eeg data + mne + braindecode approach
 """
 
 import os
+from sys import exit
 import mne
 import numpy as np
 from braindecode.datasets import create_from_X_y, create_from_mne_raw # used to be in .datautil
@@ -30,9 +31,14 @@ from eeg_data_loader import eeg_data_loader
 eeg_data_folder = "A large MI EEG dataset for EEG BCI"
 
 # subject_data_file = "5F-SubjectB-151110-5St-SGLHand.mat"
+subject_data_file = "5F-SubjectB-160316-5St-SGLHand.mat"
+
 # subject_data_file = "5F-SubjectC-151204-5St-SGLHand.mat"
-subject_data_file = "5F-SubjectF-151027-5St-SGLHand.mat"
+
+# subject_data_file = "5F-SubjectF-151027-5St-SGLHand.mat"
 # subject_data_file = "5F-SubjectF-160210-5St-SGLHand-HFREQ.mat"
+
+print(f"Loading eeg data from {subject_data_file}")
 
 subject_data_path = os.path.join(eeg_data_folder, subject_data_file)
 
@@ -48,8 +54,10 @@ ch_names = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'O1', 'O2',
 # channels closest to the primary motor cortex
 # F3, Fz, F4, C3, Cz, C4, P3, Pz, P4
 ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
-# print([ch_names[i] for i in ch_picks])
+print("Channels:")
+print([ch_names[i] for i in ch_picks])
 
+num_channels = len(ch_picks)
 
 # each item in this list is a dict containing start + stop index and event type
 events = eeg_data_loader_instance.find_all_events()
@@ -62,9 +70,20 @@ trials, labels = eeg_data_loader_instance.get_trials_x_and_y()
 X = np.array(trials)
 y = np.array(labels)
 
+# only pick some channels
+X = np.take(X, ch_picks, axis=1)
+# print(X.shape)
+# shape (num_trials, num_channels, num_time_points)
+
 # answer from git issue for braindecode:
 # class labels should start at 0, thus range from 0-4, not 1-5
 y -= 1
+
+# safety check valid values for all labels
+assert np.min(y) >= 0
+assert np.max(y) <= 4
+
+# exit()
 
 
 # plot raw eeg data
@@ -102,7 +121,7 @@ if len(events) > 0 and False:
 
 # create the core mne data structure from scratch
 # https://mne.tools/dev/auto_tutorials/simulation/10_array_objs.html#tut-creating-data-structures
-if True:
+if False:
   # by creating an info object ...
   # ch_types = ['eeg'] * len(ch_names)
   ch_types = 'eeg'
@@ -151,7 +170,7 @@ if True:
 if False:
   windows_dataset = create_from_mne_raw([raw_data], 0, 0, 200, 200, False)
   model = ShallowFBCSPNet(
-    len(ch_names), # number of channels
+    num_channels,
     5, # number of classes
     input_window_samples=240,
     final_conv_length='auto',
@@ -186,7 +205,7 @@ if False:
 
 
 if True:
-  mne.set_log_level(verbose='warning',return_old_level=True)
+  mne.set_log_level(verbose='warning', return_old_level=True)
   # old level was 20, now is 30
   
   # split into train and valid set
@@ -213,35 +232,46 @@ if True:
   if cuda:
       torch.backends.cudnn.benchmark = True
   
-  print("Creating model...")
   input_window_samples = train_set[0][0].shape[1] # shape is (22,240)
-  # model = ShallowFBCSPNet(
-  model = Deep4Net(
-      len(ch_names), # number of channels
-      5, # number of classes
-      input_window_samples=sample_frequency * 2,
-      # final_conv_length='auto',
-      final_conv_length=6,
-      pool_time_length=2,
-      pool_time_stride=2,
-  )
+  
+  model_type = "deep"
+  print(f"Creating model ({model_type}) ...")
+  
+  model = None
+  if model_type == "shallow":
+    model = ShallowFBCSPNet(
+        num_channels,
+        5, # number of classes
+        input_window_samples=sample_frequency * 2,
+        final_conv_length='auto',
+    )
+  elif model_type == "deep":
+    model = Deep4Net(
+        num_channels,
+        5, # number of classes
+        input_window_samples=sample_frequency * 2,
+        final_conv_length=6,
+        pool_time_length=2,
+        pool_time_stride=2,
+    )
   
   # Send model to GPU (if possible)
   if cuda:
-      model.cuda()
+    model.cuda()
   
   print("Creating classifier...")
+  learn_rate = 0.0625 * 0.01
+  print(f"Learn rate: {learn_rate}")
   batch_size = 32
-  n_epochs = 20
+  n_epochs = 16
   clf = EEGClassifier(
       model,
       criterion=torch.nn.NLLLoss,
       optimizer=torch.optim.AdamW,
       train_split=predefined_split(valid_set),  # using valid_set for validation
-      optimizer__lr=0.0625 * 0.01,
+      optimizer__lr=learn_rate,
       optimizer__weight_decay=0,
       batch_size=batch_size,
-      # classes=[1,2,3,4,5],
       callbacks=[
           "accuracy", ("lr_scheduler", LRScheduler('CosineAnnealingLR', T_max=n_epochs - 1)),
       ],
@@ -249,14 +279,6 @@ if True:
   )
   print(f"Training for {n_epochs} epochs...")
   clf.fit(train_set, y=None, epochs=n_epochs)
-  
-  # changed model to Deep4Net
-  # -> Error in 439 _conf_forward
-  # RuntimeError: Calculated padded input size per channel: (3 x 1). Kernel
-  # size: (10 x 1). Kernel size can't be greater than actual input size
-  # or with auto final_conv_length Error in 718 _max_pool2d
-  # RuntimeError: Given input size: (200x1x1). Calculated output size:
-  # (200x0x1). Output size is too small
   
 
 if clf is not None:
