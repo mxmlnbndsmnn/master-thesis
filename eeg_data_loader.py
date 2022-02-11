@@ -72,7 +72,8 @@ class eeg_data_loader:
   
   def find_next_event_start(self, start=0):
     for i in range(start, len(self.marker)):
-      if self.marker[i] > 0:
+      # only sections where the marker changes to 1-5 are valid trials!
+      if self.marker[i] in [1, 2, 3, 4, 5]:
         return i
     return -1
   
