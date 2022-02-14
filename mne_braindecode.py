@@ -59,6 +59,8 @@ print([ch_names[i] for i in ch_picks])
 
 num_channels = len(ch_picks)
 
+num_classes = 5
+
 # each item in this list is a dict containing start + stop index and event type
 events = eeg_data_loader_instance.find_all_events()
 
@@ -85,6 +87,7 @@ assert np.max(y) <= 4
 
 # exit()
 
+###############################################################################
 
 # plot raw eeg data
 if len(events) > 0 and False:
@@ -118,6 +121,7 @@ if len(events) > 0 and False:
   for ax in axs:
     ax.label_outer()
 
+###############################################################################
 
 # create the core mne data structure from scratch
 # https://mne.tools/dev/auto_tutorials/simulation/10_array_objs.html#tut-creating-data-structures
@@ -163,6 +167,7 @@ if False:
                 duration=10, start=start_time-1, scalings = scalings)
 
 
+###############################################################################
 
 # another test: use mne.create_from_mne_raw
 # raw_data must be a list, seems to work
@@ -203,20 +208,46 @@ if False:
   )
   clf.fit(X_train, y=y_train, epochs=n_epochs)
 
+###############################################################################
 
-if True:
-  mne.set_log_level(verbose='warning', return_old_level=True)
-  # old level was 20, now is 30
+mne.set_log_level(verbose='warning', return_old_level=True)
+# old level was 20, now is 30
+
+# print(X.shape)
+# print(y.shape)
+
+# split the dataset for k-fold cross-validation
+k = 10
+num_trials = len(X)
+valid_size = int(num_trials / k)
+print(f"Create {k} folds of (validation) size {valid_size}")
+# note that the train set might be a bit larger than (k-1) * valid_size
+
+# calculate the average metrics
+all_acc_train = []
+all_acc_valid = []
+
+for i in range(k):
+  print("-"*80)
+  print(f"Fold {i+1}/{k}:")
   
-  # split into train and valid set
-  num_trials = len(X)
-  split_i = int(num_trials * 0.8)
+  print(f"Split: from {i*valid_size} to {(i+1)*valid_size}")
+  train_X = np.delete(X, np.s_[i*valid_size:(i+1)*valid_size], axis=0)
+  train_y = np.delete(y, np.s_[i*valid_size:(i+1)*valid_size], axis=0)
+  valid_X = X[i*valid_size:(i+1)*valid_size]
+  valid_y = y[i*valid_size:(i+1)*valid_size]
   
-  train_X = X[:split_i]
-  valid_X = X[split_i:]
-  train_y = y[:split_i]
-  valid_y = y[split_i:]
+  # distribution of different validation class labels within this fold
+  label_count = [(valid_y == i).sum() for i in range(num_classes)]
+  print("Number of labels per class:")
+  print(label_count)
+  label_count = np.array(label_count)
+  print(f"mean: {label_count.mean()}")
+  print(f"std: {label_count.std():.2f}")
   
+  
+# exit()
+
   # TODO standardize per channel?
   
   # create individual train and valid sets
@@ -230,9 +261,10 @@ if True:
   cuda = torch.cuda.is_available()  # check if GPU is available, if True chooses to use it
   device = 'cuda' if cuda else 'cpu'
   if cuda:
-      torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.benchmark = True
   
-  input_window_samples = train_set[0][0].shape[1] # shape is (22,240)
+  # shape is (22,240) when using all channels
+  input_window_samples = train_set[0][0].shape[1]
   
   model_type = "deep"
   print(f"Creating model ({model_type}) ...")
@@ -241,14 +273,14 @@ if True:
   if model_type == "shallow":
     model = ShallowFBCSPNet(
         num_channels,
-        5, # number of classes
+        num_classes,
         input_window_samples=sample_frequency * 2,
         final_conv_length='auto',
     )
   elif model_type == "deep":
     model = Deep4Net(
         num_channels,
-        5, # number of classes
+        num_classes,
         input_window_samples=sample_frequency * 2,
         final_conv_length=6,
         pool_time_length=2,
@@ -263,7 +295,7 @@ if True:
   learn_rate = 0.0625 * 0.01
   print(f"Learn rate: {learn_rate}")
   batch_size = 32
-  n_epochs = 16
+  n_epochs = 6
   clf = EEGClassifier(
       model,
       criterion=torch.nn.NLLLoss,
@@ -280,8 +312,9 @@ if True:
   print(f"Training for {n_epochs} epochs...")
   clf.fit(train_set, y=None, epochs=n_epochs)
   
+###############################################################################
 
-if clf is not None:
+# if clf is not None:
   # plot the results
   # Extract loss and accuracy values for plotting from history object
   results_columns = ['train_loss', 'valid_loss', 'train_accuracy', 'valid_accuracy']
@@ -290,7 +323,9 @@ if clf is not None:
 
   # get percent of misclass for better visual comparison to loss
   df = df.assign(train_misclass=100 - 100 * df.train_accuracy,
-                 valid_misclass=100 - 100 * df.valid_accuracy)
+                  valid_misclass=100 - 100 * df.valid_accuracy)
+  # df = df.assign(train_accuracy=100 * df.train_accuracy,
+                 # valid_accuracy=100 * df.valid_accuracy)
 
   plt.style.use('seaborn')
   fig, ax1 = plt.subplots(figsize=(8, 3))
@@ -303,9 +338,11 @@ if clf is not None:
   ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
 
   df.loc[:, ['train_misclass', 'valid_misclass']].plot(
+  # df.loc[:, ['train_accuracy', 'valid_accuracy']].plot(
       ax=ax2, style=['-', ':'], marker='o', color='tab:red', legend=False)
   ax2.tick_params(axis='y', labelcolor='tab:red', labelsize=14)
   ax2.set_ylabel("Misclassification Rate [%]", color='tab:red', fontsize=14)
+  # ax2.set_ylabel("Accuracy [%]", color='tab:red', fontsize=14)
   ax2.set_ylim(ax2.get_ylim()[0], 85)  # make some room for legend
   ax1.set_xlabel("Epoch", fontsize=14)
 
@@ -315,5 +352,23 @@ if clf is not None:
   handles.append(Line2D([0], [0], color='black', linewidth=1, linestyle=':', label='Valid'))
   plt.legend(handles, [h.get_label() for h in handles], fontsize=14)
   plt.tight_layout()
+  
+  
+  # get the highest training and validation accuracies and store them
+  # to compute an average at the end
+  acc_train = df['train_accuracy'].max()
+  acc_valid = df['valid_accuracy'].max()
+  
+  all_acc_train.append(acc_train)
+  all_acc_valid.append(acc_valid)
+  
 
-
+# get the mean accuracy and standard deviation from all folds
+all_acc_train = np.array(all_acc_train)
+all_acc_valid = np.array(all_acc_valid)
+acc_mean_train = all_acc_train.mean()
+acc_std_train = all_acc_train.std()
+acc_mean_valid = all_acc_valid.mean()
+acc_std_valid = all_acc_valid.std()
+print(f"Mean accuracy (train) is {acc_mean_train} and STD is {acc_std_train:.2f}")
+print(f"Mean accuracy (valid) is {acc_mean_valid} and STD is {acc_std_valid:.2f}")
