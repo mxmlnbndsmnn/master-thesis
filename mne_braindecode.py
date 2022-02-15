@@ -19,12 +19,14 @@ import torch
 from skorch.callbacks import LRScheduler
 from skorch.helper import predefined_split
 from sklearn.model_selection import train_test_split
+from tensorflow.math import confusion_matrix
 
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
 from eeg_data_loader import eeg_data_loader
+from confusion_matrix import get_confusion_matrix, plot_confusion_matrix, calculate_cm_scores
 
 
 # EEG data source
@@ -295,7 +297,7 @@ for i in range(k):
   learn_rate = 0.0625 * 0.01
   print(f"Learn rate: {learn_rate}")
   batch_size = 32
-  n_epochs = 6
+  n_epochs = 16
   clf = EEGClassifier(
       model,
       criterion=torch.nn.NLLLoss,
@@ -362,6 +364,31 @@ for i in range(k):
   all_acc_train.append(acc_train)
   all_acc_valid.append(acc_valid)
   
+  
+  # predict on some data...
+  # can use valid_set or valid_X
+  predicted_labels = clf.predict(valid_set)
+  
+  # calculate the confusion matrix and some metrics
+  cm = get_confusion_matrix(valid_y, predicted_labels)
+  plot_confusion_matrix(cm, "Konfusionsmatrix, Fold "+str(i+1))
+  precision, recall, f_score = calculate_cm_scores(cm)
+  print("Precision:", precision, "Mean:", np.array(precision).mean())
+  print("Recall:", recall, "Mean:", np.array(recall).mean())
+  print("F1 Score:", f_score, "Mean:", np.array(f_score).mean())
+  
+  # get (probabilities) for each class
+  # actually this returns the output of the forward method
+  # with all(?) values being negative
+  # scores = clf.predict_proba(valid_X)
+  
+  # to be used for cropped mode:
+  # predictions, labels = clf.predict_trials(valid_set, return_targets=True)
+  
+  # for testing: stop after the Nth fold
+  # if i > 1:
+  break
+
 
 # get the mean accuracy and standard deviation from all folds
 all_acc_train = np.array(all_acc_train)

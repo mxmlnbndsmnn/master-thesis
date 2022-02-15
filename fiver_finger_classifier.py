@@ -13,7 +13,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.models import Sequential
-from tensorflow.math import confusion_matrix
+from tensorflow.math import confusion_matrix as tf_confusion_matrix
 import seaborn as sn
 # from sklearn.metrics import precision_score, recall_score
 
@@ -124,6 +124,7 @@ def print_all_scores(score, class_names):
     print(f"{class_name}: {100 * score[i]:10.2f}%")
 
 
+# TODO use confusion_matrix module
 # iterate over the (previously copied) test dataset and predict labels
 # to create a confusion matrix
 def plot_confusion_matrix(dataset, title=None):
@@ -144,7 +145,7 @@ def plot_confusion_matrix(dataset, title=None):
     # print_all_scores(score, class_names)
     predicted_labels.append(np.argmax(score))
   
-  cm = confusion_matrix(cm_labels, predicted_labels).numpy()
+  cm = tf_confusion_matrix(cm_labels, predicted_labels).numpy()
   # print(cm)
 
   ticklabels = [c for c in class_names]
