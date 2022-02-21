@@ -14,12 +14,13 @@ import numpy as np
 from braindecode.datasets import create_from_X_y, create_from_mne_raw # used to be in .datautil
 from braindecode.models import ShallowFBCSPNet, Deep4Net
 from braindecode import EEGClassifier
+# from braindecode.preprocessing import exponential_moving_standardize, preprocess, Preprocessor
 
 import torch
 from skorch.callbacks import LRScheduler
 from skorch.helper import predefined_split
 from sklearn.model_selection import train_test_split
-from tensorflow.math import confusion_matrix
+# from tensorflow.math import confusion_matrix
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -61,7 +62,7 @@ print([ch_names[i] for i in ch_picks])
 
 num_channels = len(ch_picks)
 
-num_classes = 5
+num_classes = 2
 
 # each item in this list is a dict containing start + stop index and event type
 events = eeg_data_loader_instance.find_all_events()
@@ -86,6 +87,21 @@ y -= 1
 # safety check valid values for all labels
 assert np.min(y) >= 0
 assert np.max(y) <= 4
+
+# change labels to classify one-versus-rest
+# class to classify = 0
+# all other classes = 1
+def map_label(label):
+  if label == 4:
+    return 0
+  return 1
+
+print("Map class labels for one-against-rest ...")
+print("One: class 4 (pinky) -> is class 0")
+print("Rest: class 0,1,2,3 -> is class 1")
+y = [map_label(v) for v in y]
+y = np.array(y)
+
 
 # exit()
 
@@ -219,7 +235,7 @@ mne.set_log_level(verbose='warning', return_old_level=True)
 # print(y.shape)
 
 # split the dataset for k-fold cross-validation
-k = 10
+k = 5
 num_trials = len(X)
 valid_size = int(num_trials / k)
 print(f"Create {k} folds of (validation) size {valid_size}")
@@ -228,6 +244,12 @@ print(f"Create {k} folds of (validation) size {valid_size}")
 # calculate the average metrics
 all_acc_train = []
 all_acc_valid = []
+precision_per_class = [0] * num_classes
+recall_per_class = [0] * num_classes
+
+# bandpass filter
+low_cut_hz = 4.
+high_cut_hz = 40.
 
 for i in range(k):
   print("-"*80)
@@ -241,7 +263,7 @@ for i in range(k):
   
   # distribution of different validation class labels within this fold
   label_count = [(valid_y == i).sum() for i in range(num_classes)]
-  print("Number of labels per class:")
+  print("Number of labels per class: (validation set)")
   print(label_count)
   label_count = np.array(label_count)
   print(f"mean: {label_count.mean()}")
@@ -249,12 +271,24 @@ for i in range(k):
   
   
 # exit()
-
-  # TODO standardize per channel?
   
   # create individual train and valid sets
   train_set = create_from_X_y(train_X, train_y, drop_last_window=False, sfreq=sample_frequency)
   valid_set = create_from_X_y(valid_X, valid_y, drop_last_window=False, sfreq=sample_frequency)
+  
+  # preprocessing does not work, since the data must be preloaded
+  # but there is no way to do that with the datasets obtained from create_from_X_y
+  # print("Preprocess datasets ...")
+  # preprocess datasets
+  # bandpass filter
+  # standardize per channel
+  # preprocessors = [
+  #   Preprocessor('filter', l_freq=low_cut_hz, h_freq=high_cut_hz),
+  #   Preprocessor(exponential_moving_standardize)
+  # ]
+  # preprocess(train_set, preprocessors)
+  # preprocess(valid_set, preprocessors)
+  
   print("Train dataset description:")
   print(train_set.description)
   print("Valid dataset description:")
@@ -294,9 +328,9 @@ for i in range(k):
     model.cuda()
   
   print("Creating classifier...")
-  learn_rate = 0.0625 * 0.01
+  learn_rate = 0.001  # 0.000625
   print(f"Learn rate: {learn_rate}")
-  batch_size = 32
+  batch_size = 8
   n_epochs = 16
   clf = EEGClassifier(
       model,
@@ -307,7 +341,8 @@ for i in range(k):
       optimizer__weight_decay=0,
       batch_size=batch_size,
       callbacks=[
-          "accuracy", ("lr_scheduler", LRScheduler('CosineAnnealingLR', T_max=n_epochs - 1)),
+          "accuracy",
+          ("lr_scheduler", LRScheduler('CosineAnnealingLR', T_max=n_epochs - 1)),
       ],
       device=device,
   )
@@ -354,7 +389,7 @@ for i in range(k):
   handles.append(Line2D([0], [0], color='black', linewidth=1, linestyle=':', label='Valid'))
   plt.legend(handles, [h.get_label() for h in handles], fontsize=14)
   plt.tight_layout()
-  
+  plt.show()
   
   # get the highest training and validation accuracies and store them
   # to compute an average at the end
@@ -377,6 +412,11 @@ for i in range(k):
   print("Recall:", recall, "Mean:", np.array(recall).mean())
   print("F1 Score:", f_score, "Mean:", np.array(f_score).mean())
   
+  for i, p in enumerate(precision):
+    precision_per_class[i] += p
+  for i, r in enumerate(recall):
+    recall_per_class[i] += r
+  
   # get (probabilities) for each class
   # actually this returns the output of the forward method
   # with all(?) values being negative
@@ -386,8 +426,8 @@ for i in range(k):
   # predictions, labels = clf.predict_trials(valid_set, return_targets=True)
   
   # for testing: stop after the Nth fold
-  # if i > 1:
-  break
+  # if i >= 1:
+  # break
 
 
 # get the mean accuracy and standard deviation from all folds
@@ -399,3 +439,12 @@ acc_mean_valid = all_acc_valid.mean()
 acc_std_valid = all_acc_valid.std()
 print(f"Mean accuracy (train) is {acc_mean_train} and STD is {acc_std_train:.2f}")
 print(f"Mean accuracy (valid) is {acc_mean_valid} and STD is {acc_std_valid:.2f}")
+
+# precision and recall per class
+print("Mean precision per class:")
+for i, p in enumerate(precision_per_class):
+  print(f"{i}: {p / k:.2f}")
+
+print("Mean recall per class:")
+for i, r in enumerate(recall_per_class):
+  print(f"{i}: {r / k:.2f}")
