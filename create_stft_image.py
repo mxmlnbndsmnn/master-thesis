@@ -81,3 +81,24 @@ def plot_trial_stft(ch, nperseg=40, sample_frequency=200, file_name=None):
   plt.imsave(file_name, image_data) # data only
   # plt.imsave(file_name, image_data, vmin=0, vmax=2) # data only
 
+
+# Calculate the STFT values for data from one channel.
+# Channel data is expected to be of shape (n_channels, n_times)
+def create_stft_for_channel(ch, sample_frequency=200, nperseg=40, high_cut_freq=40, file_name=None):
+  
+  f,t,Zxx = signal.stft(ch, fs=sample_frequency, nperseg=nperseg)
+  
+  # find the index to cut off the data for higher frequencies
+  if high_cut_freq is not None:
+    keep_index = np.searchsorted(f, high_cut_freq)
+    # remove frequencies above high_cut_freq Hz
+    f = f[:keep_index+1]
+    Zxx = Zxx[:keep_index+1, :]
+  
+  stft = np.abs(Zxx)
+  if file_name is not None:
+    plt.imsave(file_name, stft)
+  
+  return stft, f, t
+  
+

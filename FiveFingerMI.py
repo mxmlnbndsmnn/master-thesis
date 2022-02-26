@@ -3,6 +3,9 @@
 Created on Fri Nov 26 11:34:11 2021
 
 @author: User
+
+This script is (was) used to generate and store STFT images for all trials
+for one subject eeg data .mat file.
 """
 
 import os
@@ -15,7 +18,7 @@ from numpy import savetxt, loadtxt
 import matplotlib.pyplot as plt
 
 from eeg_data_loader import eeg_data_loader
-from create_stft_image_for_trial import create_stft_image_for_trial, plot_trial_stft
+from create_stft_image import create_stft_image_for_trial, plot_trial_stft
 
 
 eeg_data_folder = "A large MI EEG dataset for EEG BCI"

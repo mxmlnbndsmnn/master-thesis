@@ -17,6 +17,7 @@ class eeg_data_loader:
   sample_frequency = 0
   num_samples = 0
   markers = []
+  events = None
   
   def load_eeg_from_mat(self, subject_data_path):
     # the matlab structure is named 'o'
@@ -80,20 +81,30 @@ class eeg_data_loader:
   
   # cut trials from the full eeg data
   # return a list of trial data and a list of labels
-  # TODO: make forefun and affix frames optional parameters
-  def get_trials_x_and_y(self):
+  def get_trials_x_and_y(self, duration=1., prefix_time=0.2, suffix_time=0.2):
     # reshape eeg data -> n_channels x n_times
     transposed_eeg_data = self.eeg_data.transpose()
     X = list()
     y = list()
     
-    # start a bit earlier + extend
-    forerun_frames = int(self.sample_frequency * 0.2)
-    affix_frames = int(self.sample_frequency * 0.2)
     # trial duration is actually variable, but cannot be determined precisely anyway
-    trial_frames = self.sample_frequency
+    trial_frames = int(duration * self.sample_frequency)
+    
+    # (optional) start a bit earlier + extend
+    prefix_frames = int(self.sample_frequency * prefix_time)
+    affix_frames = int(self.sample_frequency * suffix_time)
+    
+    if self.events is None:
+      self.find_all_events()
     for event in self.events:
-      start_i = event['start'] - forerun_frames
+      start_i = event['start'] - prefix_frames
+      
+      # no trial data before time 0 (should be given implicit, but who knows)
+      if start_i < 0:
+        print("get_trials_x_and_y: skip trial (start_i < 0)")
+        continue
+      # assert start_i >= 0
+      
       # stop_i = event['stop']
       stop_i = start_i + trial_frames + affix_frames
       trial = np.array([[ch[i] for i in range(start_i, stop_i)] for ch in transposed_eeg_data])
