@@ -33,12 +33,16 @@ from confusion_matrix import get_confusion_matrix, plot_confusion_matrix, calcul
 # EEG data source
 eeg_data_folder = "A large MI EEG dataset for EEG BCI"
 
+# subject_data_file = "5F-SubjectA-160405-5St-SGLHand.mat"
+# subject_data_file = "5F-SubjectA-160408-5St-SGLHand-HFREQ.mat"
+
 # subject_data_file = "5F-SubjectB-151110-5St-SGLHand.mat"
-subject_data_file = "5F-SubjectB-160316-5St-SGLHand.mat"
+# subject_data_file = "5F-SubjectB-160316-5St-SGLHand.mat"
 
 # subject_data_file = "5F-SubjectC-151204-5St-SGLHand.mat"
 
 # subject_data_file = "5F-SubjectF-151027-5St-SGLHand.mat"
+subject_data_file = "5F-SubjectF-160209-5St-SGLHand.mat"
 # subject_data_file = "5F-SubjectF-160210-5St-SGLHand-HFREQ.mat"
 
 print(f"Loading eeg data from {subject_data_file}")
@@ -62,7 +66,7 @@ print([ch_names[i] for i in ch_picks])
 
 num_channels = len(ch_picks)
 
-num_classes = 2
+num_classes = 5
 
 # each item in this list is a dict containing start + stop index and event type
 events = eeg_data_loader_instance.find_all_events()
@@ -88,19 +92,20 @@ y -= 1
 assert np.min(y) >= 0
 assert np.max(y) <= 4
 
+
 # change labels to classify one-versus-rest
 # class to classify = 0
 # all other classes = 1
-def map_label(label):
-  if label == 4:
-    return 0
-  return 1
+# def map_label(label):
+#   if label == 4:
+#     return 0
+#   return 1
 
-print("Map class labels for one-against-rest ...")
-print("One: class 4 (pinky) -> is class 0")
-print("Rest: class 0,1,2,3 -> is class 1")
-y = [map_label(v) for v in y]
-y = np.array(y)
+# print("Map class labels for one-against-rest ...")
+# print("One: class 4 (pinky) -> is class 0")
+# print("Rest: class 0,1,2,3 -> is class 1")
+# y = [map_label(v) for v in y]
+# y = np.array(y)
 
 
 # exit()
@@ -235,7 +240,7 @@ mne.set_log_level(verbose='warning', return_old_level=True)
 # print(y.shape)
 
 # split the dataset for k-fold cross-validation
-k = 5
+k = 10
 num_trials = len(X)
 valid_size = int(num_trials / k)
 print(f"Create {k} folds of (validation) size {valid_size}")
@@ -269,9 +274,6 @@ for i in range(k):
   print(f"mean: {label_count.mean()}")
   print(f"std: {label_count.std():.2f}")
   
-  
-# exit()
-  
   # create individual train and valid sets
   train_set = create_from_X_y(train_X, train_y, drop_last_window=False, sfreq=sample_frequency)
   valid_set = create_from_X_y(valid_X, valid_y, drop_last_window=False, sfreq=sample_frequency)
@@ -289,10 +291,10 @@ for i in range(k):
   # preprocess(train_set, preprocessors)
   # preprocess(valid_set, preprocessors)
   
-  print("Train dataset description:")
-  print(train_set.description)
-  print("Valid dataset description:")
-  print(valid_set.description)
+  # print("Train dataset description:")
+  # print(train_set.description)
+  # print("Valid dataset description:")
+  # print(valid_set.description)
   
   cuda = torch.cuda.is_available()  # check if GPU is available, if True chooses to use it
   device = 'cuda' if cuda else 'cpu'
@@ -317,10 +319,14 @@ for i in range(k):
     model = Deep4Net(
         num_channels,
         num_classes,
-        input_window_samples=sample_frequency * 2,
+        input_window_samples=input_window_samples, #  sample_frequency * 2,
         final_conv_length=6,
         pool_time_length=2,
         pool_time_stride=2,
+        
+        # for 1000 Hz data
+        # final_conv_length='auto',
+        # (no pool_time_length and pool_time_stride)
     )
   
   # Send model to GPU (if possible)
@@ -330,8 +336,8 @@ for i in range(k):
   print("Creating classifier...")
   learn_rate = 0.001  # 0.000625
   print(f"Learn rate: {learn_rate}")
-  batch_size = 8
-  n_epochs = 16
+  batch_size = 16
+  n_epochs = 20
   clf = EEGClassifier(
       model,
       criterion=torch.nn.NLLLoss,
