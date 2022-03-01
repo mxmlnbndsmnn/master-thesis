@@ -22,7 +22,7 @@ from create_stft_image import create_stft_for_channel
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras.models import Sequential
-# from sys import exit
+from sys import exit
 
 
 # EEG data source
@@ -47,7 +47,7 @@ ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
 # print([ch_names[i] for i in ch_picks])
 
 # nperseg for stft generation, trade-off between time and frequency resolution
-stft_window = 40
+stft_window = 80
 
 # obtain trial data and labels for this subject
 trials, labels = eeg_data_loader_instance.get_trials_x_and_y()
@@ -74,26 +74,20 @@ for trial, label in zip(trials, labels):
     # plt.xlabel('Time [sec]')
     # plt.show()
   list_of_trial_data.append(trial_data)
-  # break  # for now test with one trial
 
 X = np.array(list_of_trial_data)
-print("X:", type(X), X.shape)
+# print("X:", type(X), X.shape)
 # should be (num_trials, num_channels, num_f, num_t)
 
-# num_channels = None
-# input_width = None
-# input_height = None
-input_shape = ()
+# some layers (conv, max pool) assume the input to have the channels as the
+# last dimension (channels_last), e.g. (batch, dim1, dim2, channel)
+X = tf.constant(X)
+# print(X[0].shape) e.g. (9, 17, 7)
+X = tf.transpose(X, perm=[0,2,3,1])
+# print(X[0].shape) e.g. (17, 7, 9)
+input_shape = X[0].shape
+
 dataset = tf.data.Dataset.from_tensor_slices((tf.constant(X), tf.constant(y)))
-for element in dataset.as_numpy_iterator():
-  # tuple of len 2 (trial, label)
-  # print(element[0].shape, element[1])
-  input_shape = element[0].shape
-  # num_channels = element[0].shape[0]
-  # input_height = element[0].shape[1]
-  # input_width = element[0].shape[2]
-  # input_shape = (None, num_channels, input_height, input_width)
-  break
 
 num_trials = len(dataset)
 print(f"Trials: {num_trials}")
@@ -175,24 +169,24 @@ for i in range(k):
   valid_ds = configure_for_performance(valid_ds)
   
   # create the model
-  model = Sequential([
-    # standardize values to be in range [0,1]
-    # this actually drags the accuracy down by a significant amount :o
-    # layers.Rescaling(scale_factor, input_shape=input_shape),
-    
-    layers.Conv2D(32, 3, padding='same', activation='elu', input_shape=input_shape),
-    layers.MaxPooling2D(),
-    layers.Dropout(0.1),
-    layers.Conv2D(64, 3, padding='same', activation='elu'),
-    layers.MaxPooling2D(),
-    layers.Dropout(0.1),
-    # layers.Conv2D(64, 3, padding='same', activation='elu'),
-    # layers.MaxPooling2D(),
-    # layers.Dropout(0.1),
-    layers.Flatten(),
-    layers.Dense(16, activation='elu'),
-    layers.Dense(num_classes)
-  ])
+  model = Sequential()
+  # standardize values to be in range [0,1]
+  # this actually drags the accuracy down by a significant amount :o
+  # layers.Rescaling(scale_factor, input_shape=input_shape),
+  
+  model.add(layers.Conv2D(32, 5, padding='same', activation='elu', input_shape=input_shape))
+  # print(model.output_shape)
+  # model.add(layers.BatchNormalization())
+  # model.add(layers.MaxPooling2D())
+  # model.add(layers.Dropout(0.4))
+  model.add(layers.Conv2D(64, 5, padding='same', activation='elu'))
+  model.add(layers.BatchNormalization())
+  model.add(layers.MaxPooling2D())
+  model.add(layers.Dropout(0.5))
+  model.add(layers.Flatten())
+  # do we need more than one dense layer?
+  model.add(layers.Dense(64, activation='elu'))
+  model.add(layers.Dense(num_classes))
   
   # instantiate an optimizer
   learn_rate = 0.001
@@ -210,7 +204,7 @@ for i in range(k):
   model.summary()
   
   # train the model
-  num_epochs = 80
+  num_epochs = 100
   print(f"Training for {num_epochs} epochs.")
   history = model.fit(train_ds, validation_data=valid_ds, epochs=num_epochs,
                       verbose=0)
