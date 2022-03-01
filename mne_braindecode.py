@@ -148,12 +148,12 @@ if len(events) > 0 and False:
 
 # create the core mne data structure from scratch
 # https://mne.tools/dev/auto_tutorials/simulation/10_array_objs.html#tut-creating-data-structures
-if False:
+if True:
   # by creating an info object ...
   # ch_types = ['eeg'] * len(ch_names)
   ch_types = 'eeg'
   info = mne.create_info(ch_names, ch_types=ch_types, sfreq=sample_frequency)
-  # info.set_montage('standard_1020')
+  info.set_montage('standard_1020', on_missing='ignore')
   # print(info)
   
   # ... create mne data from an array of shape (n_channels, n_times)
@@ -163,7 +163,8 @@ if False:
   # see np.min(transposed_eeg_data) and np.max(transposed_eeg_data)
   raw_data = mne.io.RawArray(transposed_eeg_data, info)
   raw_data.load_data()
-  raw_data.filter(4., 38.)
+  raw_data.filter(4., 40.)
+  raw_data.pick(['F3', 'Fz', 'F4', 'C3', 'Cz', 'C4', 'P3', 'Pz', 'P4'])
   
   start_time = events[0]['start']/sample_frequency
   
@@ -175,6 +176,21 @@ if False:
   anno = mne.Annotations(onset=onsets, duration=1., description=descriptions)
   
   raw_data.set_annotations(anno)
+  # data is in microvolts, not volts!
+  
+  scalings = dict(eeg=8)
+  raw_data.plot(show_scrollbars=False, show_scalebars=False,
+                duration=20, start=start_time-1, scalings = scalings)
+  
+  # note that n_components cannot be greater than number of channels
+  ica = mne.preprocessing.ICA(n_components=6, random_state=42, max_iter=800)
+  ica.fit(raw_data)
+  ica.plot_sources(raw_data, show_scrollbars=False)
+  
+  ica.plot_components()
+  # ica.plot_overlay(raw_data, exclude=[0,1])
+  
+  exit()
   
   raw_copy = raw_data.copy()
   # raw_copy.filter(4., 38.)
@@ -189,6 +205,8 @@ if False:
   raw_copy.plot(show_scrollbars=False, show_scalebars=False,
                 duration=10, start=start_time-1, scalings = scalings)
 
+
+exit()
 
 ###############################################################################
 
