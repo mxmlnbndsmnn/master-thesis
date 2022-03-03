@@ -19,6 +19,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from eeg_data_loader import eeg_data_loader
 from create_stft_image import create_stft_for_channel
+from confusion_matrix import get_confusion_matrix, plot_confusion_matrix, calculate_cm_scores
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras.models import Sequential
@@ -27,7 +28,8 @@ from sys import exit
 
 # EEG data source
 eeg_data_folder = "A large MI EEG dataset for EEG BCI"
-subject_data_file = "5F-SubjectA-160405-5St-SGLHand.mat"
+# subject_data_file = "5F-SubjectA-160405-5St-SGLHand.mat"
+subject_data_file = "5F-SubjectC-151204-5St-SGLHand.mat"
 # subject_data_file = "5F-SubjectB-151110-5St-SGLHand.mat"
 subject_data_path = os_path.join(eeg_data_folder, subject_data_file)
 
@@ -47,7 +49,8 @@ ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
 # print([ch_names[i] for i in ch_picks])
 
 # nperseg for stft generation, trade-off between time and frequency resolution
-stft_window = 80
+stft_window = 60
+print(f"STFT window size: {stft_window}")
 
 # obtain trial data and labels for this subject
 trials, labels = eeg_data_loader_instance.get_trials_x_and_y()
@@ -159,6 +162,8 @@ print(f"Create {k} folds of size {valid_size}")
 # calculate the average metrics
 all_acc_train = []
 all_acc_valid = []
+precision_per_class = [0] * num_classes
+recall_per_class = [0] * num_classes
 
 for i in range(k):
   print("-"*80)
@@ -186,7 +191,7 @@ for i in range(k):
   model.add(layers.Flatten())
   # do we need more than one dense layer?
   model.add(layers.Dense(64, activation='elu'))
-  model.add(layers.Dense(num_classes))
+  model.add(layers.Dense(num_classes, activation='softmax'))  # softmax activation?
   
   # instantiate an optimizer
   learn_rate = 0.001
@@ -197,14 +202,15 @@ for i in range(k):
   
   # compile the model
   model.compile(optimizer=optimizer,
-                loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+                # from_logits=True (if not using a softmax activation as last layer)
+                loss=tf.keras.losses.SparseCategoricalCrossentropy(),
                 metrics=['accuracy'])
   
   # view the layers of the model
-  model.summary()
+  # model.summary()
   
   # train the model
-  num_epochs = 100
+  num_epochs = 80
   print(f"Training for {num_epochs} epochs.")
   history = model.fit(train_ds, validation_data=valid_ds, epochs=num_epochs,
                       verbose=0)
@@ -216,12 +222,38 @@ for i in range(k):
   # get the highest accuracy for training and validation
   acc_train = np.array(history.history['accuracy']).max()
   acc_valid = np.array(history.history['val_accuracy']).max()
+  best_valid_epoch = np.array(history.history['val_accuracy']).argmax() + 1
+  print(f"Highest validation accuracy at epoch {best_valid_epoch}")
   
   all_acc_train.append(acc_train)
   all_acc_valid.append(acc_valid)
   
+  true_labels = []
+  for sample_batch, label_batch in valid_ds:
+    for label in label_batch:
+      true_labels.append(label.numpy())
+  
+  predicted_labels = []
+  predictions = model.predict(valid_ds)
+  for prediction in predictions:
+    score = tf.nn.softmax(prediction).numpy()
+    predicted_labels.append(np.argmax(score))
+  cm = get_confusion_matrix(true_labels, predicted_labels)
+  plot_confusion_matrix(cm, "Konfusionsmatrix, Fold "+str(i+1))
+  precision, recall, f_score = calculate_cm_scores(cm)
+  print("Precision:", precision, "Mean:", np.array(precision).mean())
+  print("Recall:", recall, "Mean:", np.array(recall).mean())
+  print("F1 Score:", f_score, "Mean:", np.array(f_score).mean())
+  
+  for i, p in enumerate(precision):
+    precision_per_class[i] += p
+  for i, r in enumerate(recall):
+    recall_per_class[i] += r
+  
   # break
 
+# only need to print this once
+model.summary()
 
 # get the mean accuracy and standard deviation from all folds
 all_acc_train = np.array(all_acc_train)
@@ -232,4 +264,13 @@ acc_mean_valid = all_acc_valid.mean()
 acc_std_valid = all_acc_valid.std()
 print(f"Mean accuracy (train) is {acc_mean_train:.3f} and STD is {acc_std_train:.3f}")
 print(f"Mean accuracy (valid) is {acc_mean_valid:.3f} and STD is {acc_std_valid:.3f}")
+
+# precision and recall per class
+print("Mean precision per class:")
+for i, p in enumerate(precision_per_class):
+  print(f"{i}: {p / k:.2f}")
+
+print("Mean recall per class:")
+for i, r in enumerate(recall_per_class):
+  print(f"{i}: {r / k:.2f}")
 
