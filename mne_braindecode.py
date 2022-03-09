@@ -42,8 +42,8 @@ eeg_data_folder = "A large MI EEG dataset for EEG BCI"
 # subject_data_file = "5F-SubjectC-151204-5St-SGLHand.mat"
 
 # subject_data_file = "5F-SubjectF-151027-5St-SGLHand.mat"
-subject_data_file = "5F-SubjectF-160209-5St-SGLHand.mat"
-# subject_data_file = "5F-SubjectF-160210-5St-SGLHand-HFREQ.mat"
+# subject_data_file = "5F-SubjectF-160209-5St-SGLHand.mat"
+subject_data_file = "5F-SubjectF-160210-5St-SGLHand-HFREQ.mat"
 
 print(f"Loading eeg data from {subject_data_file}")
 
@@ -74,8 +74,17 @@ events = eeg_data_loader_instance.find_all_events()
 sample_frequency = eeg_data_loader_instance.sample_frequency
 num_samples = eeg_data_loader_instance.num_samples
 
+if sample_frequency == 200:
+  trials, labels = eeg_data_loader_instance.get_trials_x_and_y()
+elif sample_frequency == 1000:
+  # downsample using every 5th data point to go from 1000Hz to 200Hz
+  trials, labels = eeg_data_loader_instance.get_trials_x_and_y_downsample(5)
+  # use the downsampled frequency...
+  sample_frequency = 200
+  print("Downsample from 1000Hz to 200Hz.")
+else:
+  raise RuntimeError("Unexpected sample frequency:", sample_frequency)
 
-trials, labels = eeg_data_loader_instance.get_trials_x_and_y()
 X = np.array(trials)
 y = np.array(labels)
 
@@ -148,7 +157,7 @@ if len(events) > 0 and False:
 
 # create the core mne data structure from scratch
 # https://mne.tools/dev/auto_tutorials/simulation/10_array_objs.html#tut-creating-data-structures
-if True:
+if False:
   # by creating an info object ...
   # ch_types = ['eeg'] * len(ch_names)
   ch_types = 'eeg'
@@ -206,7 +215,7 @@ if True:
                 duration=10, start=start_time-1, scalings = scalings)
 
 
-exit()
+# exit()
 
 ###############################################################################
 
@@ -284,13 +293,22 @@ for i in range(k):
   valid_X = X[i*valid_size:(i+1)*valid_size]
   valid_y = y[i*valid_size:(i+1)*valid_size]
   
+  # distribution of different train class labels within this fold
+  label_count_train = [(train_y == i).sum() for i in range(num_classes)]
+  print("Number of labels per class: (train set)")
+  print(label_count_train)
+  label_count_train = np.array(label_count_train)
+  print(f"std: {label_count_train.std():.2f}")
+  
   # distribution of different validation class labels within this fold
-  label_count = [(valid_y == i).sum() for i in range(num_classes)]
+  label_count_valid = [(valid_y == i).sum() for i in range(num_classes)]
   print("Number of labels per class: (validation set)")
-  print(label_count)
-  label_count = np.array(label_count)
-  print(f"mean: {label_count.mean()}")
-  print(f"std: {label_count.std():.2f}")
+  print(label_count_valid)
+  label_count_valid = np.array(label_count_valid)
+  # print(f"mean: {label_count_valid.mean()}")
+  print(f"std: {label_count_valid.std():.2f}")
+  
+  # continue
   
   # create individual train and valid sets
   train_set = create_from_X_y(train_X, train_y, drop_last_window=False, sfreq=sample_frequency)
@@ -452,7 +470,6 @@ for i in range(k):
   # for testing: stop after the Nth fold
   # if i >= 1:
   # break
-
 
 # get the mean accuracy and standard deviation from all folds
 all_acc_train = np.array(all_acc_train)
