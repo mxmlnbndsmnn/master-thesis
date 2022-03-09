@@ -102,3 +102,9 @@ def create_stft_for_channel(ch, sample_frequency=200, nperseg=40, high_cut_freq=
   return stft, f, t
   
 
+def create_ctw_for_channel(ch, widths_max=30):
+  # also called mexican hat wavelet
+  wavelet = signal.ricker
+  widths = np.arange(1, widths_max+1)  # TODO: ?
+  cwt = signal.cwt(ch, wavelet, widths)
+  return cwt

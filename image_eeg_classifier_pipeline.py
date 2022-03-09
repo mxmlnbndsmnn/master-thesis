@@ -18,19 +18,21 @@ from os import path as os_path
 import numpy as np
 import matplotlib.pyplot as plt
 from eeg_data_loader import eeg_data_loader
-from create_stft_image import create_stft_for_channel
+from create_eeg_image import create_stft_for_channel, create_ctw_for_channel
 from confusion_matrix import get_confusion_matrix, plot_confusion_matrix, calculate_cm_scores
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras.models import Sequential
+# from sklearn.model_selection import StratifiedKFold
 from sys import exit
 
 
 # EEG data source
 eeg_data_folder = "A large MI EEG dataset for EEG BCI"
 # subject_data_file = "5F-SubjectA-160405-5St-SGLHand.mat"
-subject_data_file = "5F-SubjectC-151204-5St-SGLHand.mat"
+# subject_data_file = "5F-SubjectC-151204-5St-SGLHand.mat"
 # subject_data_file = "5F-SubjectB-151110-5St-SGLHand.mat"
+subject_data_file = "5F-SubjectF-160209-5St-SGLHand.mat"
 subject_data_path = os_path.join(eeg_data_folder, subject_data_file)
 
 eeg_data_loader_instance = eeg_data_loader()
@@ -48,10 +50,6 @@ ch_names = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'O1', 'O2',
 ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
 # print([ch_names[i] for i in ch_picks])
 
-# nperseg for stft generation, trade-off between time and frequency resolution
-stft_window = 60
-print(f"STFT window size: {stft_window}")
-
 # obtain trial data and labels for this subject
 trials, labels = eeg_data_loader_instance.get_trials_x_and_y()
 # X = np.array(trials)
@@ -61,22 +59,47 @@ num_classes = 5
 
 # generate the "images" per channel for all trials
 list_of_trial_data = []
+
+# CTW images
 for trial, label in zip(trials, labels):
   trial_data = []
   for ch_index in ch_picks:
     ch = trial[ch_index]
-    # nperseg should divide the channel shape (240) without remainder
-    # smaller nperseg = better time resolution, higher = better frequency resolution
-    stft, f, t = create_stft_for_channel(ch, sample_frequency=sample_frequency, nperseg=stft_window)
-    trial_data.append(stft)
+    cwt = create_ctw_for_channel(ch, widths_max=30)  # 40?
+    trial_data.append(cwt)
     
-    # note that if the dimensions of (t,f) are equal to those of stft, cannot use flat shading
-    # plt.pcolormesh(t, f, stft, cmap="Greys", shading='nearest')
-    # plt.title('STFT Magnitude')
+    # note for pretty images use another (no) cmap
+    # plt.imshow(cwt, cmap="Greys", vmax=abs(cwt).max(), vmin=-abs(cwt).max())
+    # plt.title('CWT')
     # plt.ylabel('Frequency [Hz]')
     # plt.xlabel('Time [sec]')
     # plt.show()
   list_of_trial_data.append(trial_data)
+
+
+# STFT images
+if False:
+  # nperseg for stft generation, trade-off between time and frequency resolution
+  stft_window = 60
+  print(f"STFT window size: {stft_window}")
+
+  for trial, label in zip(trials, labels):
+    trial_data = []
+    for ch_index in ch_picks:
+      ch = trial[ch_index]
+      # nperseg should divide the channel shape (240) without remainder
+      # smaller nperseg = better time resolution, higher = better frequency resolution
+      stft, f, t = create_stft_for_channel(ch, sample_frequency=sample_frequency, nperseg=stft_window)
+      trial_data.append(stft)
+      
+      # note that if the dimensions of (t,f) are equal to those of stft, cannot use flat shading
+      # note for pretty images use another (no) cmap and maybe gouraud shading
+      # plt.pcolormesh(t, f, stft, cmap="Greys", shading='nearest')
+      # plt.title('STFT Magnitude')
+      # plt.ylabel('Frequency [Hz]')
+      # plt.xlabel('Time [sec]')
+      # plt.show()
+    list_of_trial_data.append(trial_data)
 
 X = np.array(list_of_trial_data)
 # print("X:", type(X), X.shape)
@@ -90,23 +113,40 @@ X = tf.transpose(X, perm=[0,2,3,1])
 # print(X[0].shape) e.g. (17, 7, 9)
 input_shape = X[0].shape
 
+
+# stratified k-fold cv
+# k = 5
+# skf = StratifiedKFold(n_splits=k)
+# for train, test in skf.split(X, y):
+#   print(len(train))
+#   print(train.shape)
+#   print(len(test))
+#   print(test.shape)
+#   print(len(train)+len(test))
+# exit()
+
+# TODO
+# do some numpy magic to only pick the selected indices for each train/valid set
+# create a dataset for each fold, no need to use take and skip
+
 dataset = tf.data.Dataset.from_tensor_slices((tf.constant(X), tf.constant(y)))
 
 num_trials = len(dataset)
 print(f"Trials: {num_trials}")
 
-# in order to normalize the input, we have to find the value range
-# the lower bound is 0, and the upper bound can be found by checking each
-# elements maximum value (of the stft data structure)
-max_stft_value = 0
-for element in dataset.as_numpy_iterator():
-  local_max = element[0].max()
-  if local_max > max_stft_value:
-    max_stft_value = local_max
-max_stft_value = int(max_stft_value) + 1
-scale_factor = 1/max_stft_value
-print(f"max_stft_value: {max_stft_value}")
-print(f"scale_factor: {scale_factor}")
+if False:
+  # in order to normalize the input, we have to find the value range
+  # the lower bound is 0, and the upper bound can be found by checking each
+  # elements maximum value (of the stft data structure)
+  max_stft_value = 0
+  for element in dataset.as_numpy_iterator():
+    local_max = element[0].max()
+    if local_max > max_stft_value:
+      max_stft_value = local_max
+  max_stft_value = int(max_stft_value) + 1
+  scale_factor = 1/max_stft_value
+  print(f"max_stft_value: {max_stft_value}")
+  print(f"scale_factor: {scale_factor}")
 
 
 # to be called after the dataset has been preprocessed and split for k-fold cv
@@ -182,7 +222,11 @@ for i in range(k):
   model.add(layers.Conv2D(32, 5, padding='same', activation='elu', input_shape=input_shape))
   # print(model.output_shape)
   # model.add(layers.BatchNormalization())
-  # model.add(layers.MaxPooling2D())
+  
+  # TODO remove? - added this layer again for testing, to reduce time
+  # (model had almost 10m params)
+  model.add(layers.MaxPooling2D())
+  
   # model.add(layers.Dropout(0.4))
   model.add(layers.Conv2D(64, 5, padding='same', activation='elu'))
   model.add(layers.BatchNormalization())
@@ -209,21 +253,30 @@ for i in range(k):
   # view the layers of the model
   # model.summary()
   
+  # early stopping
+  # monitors the loss and stops training after [patience] epochs that show no improvements
+  es_callback = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=4)
+  
   # train the model
-  num_epochs = 80
-  print(f"Training for {num_epochs} epochs.")
+  num_epochs = 40
+  print(f"Training for up to {num_epochs} epochs.")
   history = model.fit(train_ds, validation_data=valid_ds, epochs=num_epochs,
-                      verbose=0)
+                      verbose=0, callbacks=[es_callback])
   
   # visualize training
-  visualize_training(history, num_epochs)
+  # using early stopping, the actual number of epochs might be lower than num_epochs!
+  true_num_epochs = len(history.history['loss'])
+  if true_num_epochs < num_epochs:
+    print(f"Early stop training after epoch {true_num_epochs}")
+  visualize_training(history, true_num_epochs)
   
   # calculate average metrics
   # get the highest accuracy for training and validation
+  best_valid_acc = np.array(history.history['val_accuracy']).max()
   acc_train = np.array(history.history['accuracy']).max()
-  acc_valid = np.array(history.history['val_accuracy']).max()
+  acc_valid = best_valid_acc
   best_valid_epoch = np.array(history.history['val_accuracy']).argmax() + 1
-  print(f"Highest validation accuracy at epoch {best_valid_epoch}")
+  print(f"Highest validation accuracy ({best_valid_acc:.3f}) at epoch {best_valid_epoch}")
   
   all_acc_train.append(acc_train)
   all_acc_valid.append(acc_valid)
