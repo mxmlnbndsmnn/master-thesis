@@ -1,4 +1,5 @@
 .spyproject
+__pycache__
 A\ large\ MI\ EEG\ dataset\ for\ EEG\ BCI
 flower_photos
 parts
