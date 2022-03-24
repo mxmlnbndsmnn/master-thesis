@@ -35,6 +35,17 @@ eeg_data_folder = "A large MI EEG dataset for EEG BCI"
 
 # subject_data_file = "5F-SubjectA-160405-5St-SGLHand.mat"
 # subject_data_file = "5F-SubjectA-160408-5St-SGLHand-HFREQ.mat"
+# subject_data_file = "5F-SubjectB-160309-5St-SGLHand-HFREQ.mat"
+# subject_data_file = "5F-SubjectB-160311-5St-SGLHand-HFREQ.mat"
+# subject_data_file = "5F-SubjectC-160429-5St-SGLHand-HFREQ.mat"
+# subject_data_file = "5F-SubjectE-160321-5St-SGLHand-HFREQ.mat"
+# subject_data_file = "5F-SubjectE-160415-5St-SGLHand-HFREQ.mat"
+# subject_data_file = "5F-SubjectE-160429-5St-SGLHand-HFREQ.mat"
+# subject_data_file = "5F-SubjectG-160413-5St-SGLHand-HFREQ.mat"
+# subject_data_file = "5F-SubjectG-160428-5St-SGLHand-HFREQ.mat"
+# subject_data_file = "5F-SubjectH-160804-5St-SGLHand-HFREQ.mat"
+# subject_data_file = "5F-SubjectI-160719-5St-SGLHand-HFREQ.mat"
+subject_data_file = "5F-SubjectI-160723-5St-SGLHand-HFREQ.mat"
 
 # subject_data_file = "5F-SubjectB-151110-5St-SGLHand.mat"
 # subject_data_file = "5F-SubjectB-160316-5St-SGLHand.mat"
@@ -43,7 +54,7 @@ eeg_data_folder = "A large MI EEG dataset for EEG BCI"
 
 # subject_data_file = "5F-SubjectF-151027-5St-SGLHand.mat"
 # subject_data_file = "5F-SubjectF-160209-5St-SGLHand.mat"
-subject_data_file = "5F-SubjectF-160210-5St-SGLHand-HFREQ.mat"
+# subject_data_file = "5F-SubjectF-160210-5St-SGLHand-HFREQ.mat"
 
 print(f"Loading eeg data from {subject_data_file}")
 

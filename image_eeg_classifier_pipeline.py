@@ -7,7 +7,7 @@ Created on Wed Feb 23 11:48:53 2022
 Full pipeline:
 - load eeg data for one subject recording (or more?)
 - obtain a list of trial data and a list of labels
-- calculate STFT images for selected channels per trial
+- calculate STFT/CWT images for selected channels per trial
 - X = list of num_trials x num_channels x num_times
 - y = list of labels
 - use k-fold cross validation to split the lists k times
@@ -30,9 +30,9 @@ from sys import exit
 # EEG data source
 eeg_data_folder = "A large MI EEG dataset for EEG BCI"
 # subject_data_file = "5F-SubjectA-160405-5St-SGLHand.mat"
-# subject_data_file = "5F-SubjectC-151204-5St-SGLHand.mat"
+subject_data_file = "5F-SubjectC-151204-5St-SGLHand.mat"
 # subject_data_file = "5F-SubjectB-151110-5St-SGLHand.mat"
-subject_data_file = "5F-SubjectF-160209-5St-SGLHand.mat"
+# subject_data_file = "5F-SubjectF-160209-5St-SGLHand.mat"
 subject_data_path = os_path.join(eeg_data_folder, subject_data_file)
 
 eeg_data_loader_instance = eeg_data_loader()
@@ -65,14 +65,12 @@ for trial, label in zip(trials, labels):
   trial_data = []
   for ch_index in ch_picks:
     ch = trial[ch_index]
-    cwt = create_ctw_for_channel(ch, widths_max=30)  # 40?
+    cwt = create_ctw_for_channel(ch, widths_max=30)  # 30, 40?
     trial_data.append(cwt)
     
     # note for pretty images use another (no) cmap
     # plt.imshow(cwt, cmap="Greys", vmax=abs(cwt).max(), vmin=-abs(cwt).max())
     # plt.title('CWT')
-    # plt.ylabel('Frequency [Hz]')
-    # plt.xlabel('Time [sec]')
     # plt.show()
   list_of_trial_data.append(trial_data)
 
@@ -225,9 +223,9 @@ for i in range(k):
   
   # TODO remove? - added this layer again for testing, to reduce time
   # (model had almost 10m params)
-  model.add(layers.MaxPooling2D())
+  # model.add(layers.MaxPooling2D())
+  # model.add(layers.Dropout(0.5))
   
-  # model.add(layers.Dropout(0.4))
   model.add(layers.Conv2D(64, 5, padding='same', activation='elu'))
   model.add(layers.BatchNormalization())
   model.add(layers.MaxPooling2D())
@@ -303,7 +301,7 @@ for i in range(k):
   for i, r in enumerate(recall):
     recall_per_class[i] += r
   
-  # break
+  break
 
 # only need to print this once
 model.summary()
