@@ -29,7 +29,6 @@ file_index = int(sys.argv[1])
 
 eeg_data_folder = "eeg-data"
 # all files
-"""
 subject_data_files = ['5F-SubjectA-160405-5St-SGLHand.mat',  # 0
                       '5F-SubjectA-160408-5St-SGLHand-HFREQ.mat',
                       '5F-SubjectB-151110-5St-SGLHand.mat',
@@ -49,9 +48,9 @@ subject_data_files = ['5F-SubjectA-160405-5St-SGLHand.mat',  # 0
                       '5F-SubjectH-160804-5St-SGLHand-HFREQ.mat',
                       '5F-SubjectI-160719-5St-SGLHand-HFREQ.mat',
                       '5F-SubjectI-160723-5St-SGLHand-HFREQ.mat']  # 18
-"""
 
 # 1000Hz files only
+"""
 subject_data_files = ['5F-SubjectA-160408-5St-SGLHand-HFREQ.mat',  # 0
                       '5F-SubjectB-160309-5St-SGLHand-HFREQ.mat',
                       '5F-SubjectB-160311-5St-SGLHand-HFREQ.mat',
@@ -65,14 +64,22 @@ subject_data_files = ['5F-SubjectA-160408-5St-SGLHand-HFREQ.mat',  # 0
                       '5F-SubjectH-160804-5St-SGLHand-HFREQ.mat',
                       '5F-SubjectI-160719-5St-SGLHand-HFREQ.mat',
                       '5F-SubjectI-160723-5St-SGLHand-HFREQ.mat']  # 12
+"""
+
 subject_data_file = subject_data_files[file_index]
 subject_data_path = os_path.join(eeg_data_folder, subject_data_file)
 
 print(f"Load subject data from path: {subject_data_path}")
 
-ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
+# pick 9 channels closest to the motor cortex
+# ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
+# pick a few more channels, too
+ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+
 ch_names = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'O1', 'O2',
             'A1', 'A2', 'F7', 'F8', 'T3', 'T4', 'T5', 'T6', 'Fz', 'Cz', 'Pz', 'X3']
+print("Use EEG channels:")
+print([ch_names[i] for i in ch_picks])
 
 eeg_data_loader_instance = eeg_data_loader()
 eeg_data = eeg_data_loader_instance.load_eeg_from_mat(subject_data_path)
