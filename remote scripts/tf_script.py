@@ -17,8 +17,9 @@ if len(gpu_list) < 1:
   sys.exit()
 
 
-file_index = 0
+file_index = 6
 
+"""
 # if using an array job: assume the first argument (after the file path) to
 # represent the file index in the list of all eeg data files
 if len(sys.argv) == 1:
@@ -26,6 +27,7 @@ if len(sys.argv) == 1:
   sys.exit()
 
 file_index = int(sys.argv[1])
+"""
 
 eeg_data_folder = "eeg-data"
 # all files
@@ -97,11 +99,58 @@ elif sample_frequency == 1000:
 else:
   raise RuntimeError("Unexpected sample frequency:", sample_frequency)
 
+X_raw = np.array(trials)
 y = np.array(labels) - 1  # labels should range from 0-4 (?)
 
 num_classes = 5
 
-# generate the "images" per channel for all trials
+###############################################################################
+
+# generate the "images" per channel for all trials from 2 classes (1 vs 1)
+# pick trials and labels to do a 1 vs 1 classification
+# only pick trials for two classes, discard the rest
+num_classes = 2
+
+# compare 0-1, 0-2, 0-3, 0-4, 1-2, 1-3, 1-4, 2-3, 2-4, 3-4
+comparisons = [[0,1], [0,2], [0,3], [0,4], [1,2], [1,3], [1,4], [2,3], [2,4], [3,4]]
+comparison_index = int(sys.argv[1])
+
+first_class = comparisons[comparison_index][0]
+second_class = comparisons[comparison_index][1]
+print(f"Compare class {first_class} vs {second_class}")
+print("Trials per class:", first_class, "=", (y==first_class).sum())
+print("Trials per class:", second_class, "=", (y==second_class).sum())
+
+list_of_trial_data = []
+list_of_fake_labels = []
+
+# CTW images
+for trial, label in zip(X_raw, y):
+  fake_label = 0
+  if label == first_class:
+    fake_label = 0
+  elif label == second_class:
+    fake_label = 1
+  else:
+    continue  # skip all other classes
+  
+  trial_data = []
+  for ch_index in ch_picks:
+    ch = trial[ch_index]
+    cwt = create_ctw_for_channel(ch, widths_max=40)
+    trial_data.append(cwt)
+  list_of_trial_data.append(trial_data)
+  list_of_fake_labels.append(fake_label)
+
+X = np.array(list_of_trial_data)
+print("X:", type(X), X.shape)
+# should be (num_trials, num_channels, num_f, num_t)
+y = np.array(list_of_fake_labels)
+
+###############################################################################
+
+# generate the "images" per channel for all trials - normal (5 classes)
+"""
 list_of_trial_data = []
 
 # CTW images
@@ -116,6 +165,9 @@ for trial, label in zip(trials, labels):
 X = np.array(list_of_trial_data)
 print("X:", type(X), X.shape)
 # should be (num_trials, num_channels, num_f, num_t)
+"""
+
+###############################################################################
 
 # some layers (conv, max pool) assume the input to have the channels as the
 # last dimension (channels_last), e.g. (batch, dim1, dim2, channel)
@@ -185,7 +237,9 @@ for i in range(k):
   
   model.add(layers.Conv2D(32, 5, padding='same', activation='elu', input_shape=input_shape))
   # print(model.output_shape)
-  # model.add(layers.BatchNormalization())
+  model.add(layers.BatchNormalization())
+  model.add(layers.MaxPooling2D())
+  model.add(layers.Dropout(0.5))
   model.add(layers.Conv2D(64, 5, padding='same', activation='elu'))
   model.add(layers.BatchNormalization())
   model.add(layers.MaxPooling2D())
@@ -282,4 +336,7 @@ for i, p in enumerate(precision_per_class):
 print("Mean recall per class:")
 for i, r in enumerate(recall_per_class):
   print(f"{i}: {r / k:.2f}")
+
+print(f"first_class: {first_class}")
+print(f"second_class: {second_class}")
 
