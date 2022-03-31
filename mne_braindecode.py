@@ -33,28 +33,30 @@ from confusion_matrix import get_confusion_matrix, plot_confusion_matrix, calcul
 # EEG data source
 eeg_data_folder = "A large MI EEG dataset for EEG BCI"
 
-# subject_data_file = "5F-SubjectA-160405-5St-SGLHand.mat"
-# subject_data_file = "5F-SubjectA-160408-5St-SGLHand-HFREQ.mat"
-# subject_data_file = "5F-SubjectB-160309-5St-SGLHand-HFREQ.mat"
-# subject_data_file = "5F-SubjectB-160311-5St-SGLHand-HFREQ.mat"
-# subject_data_file = "5F-SubjectC-160429-5St-SGLHand-HFREQ.mat"
-# subject_data_file = "5F-SubjectE-160321-5St-SGLHand-HFREQ.mat"
-# subject_data_file = "5F-SubjectE-160415-5St-SGLHand-HFREQ.mat"
-# subject_data_file = "5F-SubjectE-160429-5St-SGLHand-HFREQ.mat"
-# subject_data_file = "5F-SubjectG-160413-5St-SGLHand-HFREQ.mat"
-# subject_data_file = "5F-SubjectG-160428-5St-SGLHand-HFREQ.mat"
-# subject_data_file = "5F-SubjectH-160804-5St-SGLHand-HFREQ.mat"
-# subject_data_file = "5F-SubjectI-160719-5St-SGLHand-HFREQ.mat"
-subject_data_file = "5F-SubjectI-160723-5St-SGLHand-HFREQ.mat"
+# all files
+subject_data_files = ['5F-SubjectA-160405-5St-SGLHand.mat',  # 0
+                      '5F-SubjectA-160408-5St-SGLHand-HFREQ.mat',
+                      '5F-SubjectB-151110-5St-SGLHand.mat',
+                      '5F-SubjectB-160309-5St-SGLHand-HFREQ.mat',
+                      '5F-SubjectB-160311-5St-SGLHand-HFREQ.mat',
+                      '5F-SubjectB-160316-5St-SGLHand.mat',
+                      '5F-SubjectC-151204-5St-SGLHand.mat',
+                      '5F-SubjectC-160429-5St-SGLHand-HFREQ.mat',
+                      '5F-SubjectE-160321-5St-SGLHand-HFREQ.mat',
+                      '5F-SubjectE-160415-5St-SGLHand-HFREQ.mat',
+                      '5F-SubjectE-160429-5St-SGLHand-HFREQ.mat',  # 10
+                      '5F-SubjectF-151027-5St-SGLHand.mat',
+                      '5F-SubjectF-160209-5St-SGLHand.mat',
+                      '5F-SubjectF-160210-5St-SGLHand-HFREQ.mat',
+                      '5F-SubjectG-160413-5St-SGLHand-HFREQ.mat',
+                      '5F-SubjectG-160428-5St-SGLHand-HFREQ.mat',
+                      '5F-SubjectH-160804-5St-SGLHand-HFREQ.mat',
+                      '5F-SubjectI-160719-5St-SGLHand-HFREQ.mat',
+                      '5F-SubjectI-160723-5St-SGLHand-HFREQ.mat']  # 18
 
-# subject_data_file = "5F-SubjectB-151110-5St-SGLHand.mat"
-# subject_data_file = "5F-SubjectB-160316-5St-SGLHand.mat"
-
-# subject_data_file = "5F-SubjectC-151204-5St-SGLHand.mat"
-
-# subject_data_file = "5F-SubjectF-151027-5St-SGLHand.mat"
-# subject_data_file = "5F-SubjectF-160209-5St-SGLHand.mat"
-# subject_data_file = "5F-SubjectF-160210-5St-SGLHand-HFREQ.mat"
+# choose the subject file from the file list
+file_index = 7
+subject_data_file = subject_data_files[file_index]
 
 print(f"Loading eeg data from {subject_data_file}")
 
@@ -71,7 +73,9 @@ ch_names = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'O1', 'O2',
 
 # channels closest to the primary motor cortex
 # F3, Fz, F4, C3, Cz, C4, P3, Pz, P4
-ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
+# ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
+# pick almost all channels
+ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20]
 print("Channels:")
 print([ch_names[i] for i in ch_picks])
 
@@ -96,21 +100,20 @@ elif sample_frequency == 1000:
 else:
   raise RuntimeError("Unexpected sample frequency:", sample_frequency)
 
-X = np.array(trials)
-y = np.array(labels)
+X_raw = np.array(trials)
+y_raw = np.array(labels)
 
 # only pick some channels
-X = np.take(X, ch_picks, axis=1)
-# print(X.shape)
+X_raw = np.take(X_raw, ch_picks, axis=1)
 # shape (num_trials, num_channels, num_time_points)
 
 # answer from git issue for braindecode:
 # class labels should start at 0, thus range from 0-4, not 1-5
-y -= 1
+y_raw -= 1
 
 # safety check valid values for all labels
-assert np.min(y) >= 0
-assert np.max(y) <= 4
+assert np.min(y_raw) >= 0
+assert np.max(y_raw) <= 4
 
 
 # change labels to classify one-versus-rest
@@ -124,9 +127,39 @@ assert np.max(y) <= 4
 # print("Map class labels for one-against-rest ...")
 # print("One: class 4 (pinky) -> is class 0")
 # print("Rest: class 0,1,2,3 -> is class 1")
-# y = [map_label(v) for v in y]
-# y = np.array(y)
+# y = [map_label(v) for v in y_raw]
+# y = np.array(y_raw)
 
+
+# count the number of trials per class
+# for i in [0,1,2,3,4]:
+  # print("Trials per class:", i, "=", (y_raw==i).sum())
+
+
+# pick trials and labels to do a 1 vs 1 classification
+# only pick trials for two classes, discard the rest
+num_classes = 2
+X = list()
+y = list()
+# compare 0-1, 0-2, 0-3, 0-4, 1-2, 1-3, 1-4, 2-3, 2-4, 3-4
+first_class = 3   # change here
+second_class = 4  # change here
+print(f"Compare class {first_class} vs {second_class}")
+print("Trials per class:", first_class, "=", (y_raw==first_class).sum())
+print("Trials per class:", second_class, "=", (y_raw==second_class).sum())
+# map first_class to class 0 and second_class to class 1
+for trial, label in zip(X_raw, y_raw):
+  if label == first_class:
+    X.append(trial)
+    y.append(0)
+  elif label == second_class:
+    X.append(trial)
+    y.append(1)
+
+X = np.array(X)
+y = np.array(y)
+
+del X_raw, y_raw
 
 # exit()
 
@@ -500,3 +533,7 @@ for i, p in enumerate(precision_per_class):
 print("Mean recall per class:")
 for i, r in enumerate(recall_per_class):
   print(f"{i}: {r / k:.2f}")
+
+print(f"first_class: {first_class}")
+print(f"second_class: {second_class}")
+
