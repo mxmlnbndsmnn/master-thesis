@@ -323,6 +323,9 @@ all_acc_valid = []
 precision_per_class = [0] * num_classes
 recall_per_class = [0] * num_classes
 
+# sum over all confusion matrices
+cumulative_cm = None
+
 # bandpass filter
 low_cut_hz = 4.
 high_cut_hz = 40.
@@ -493,6 +496,11 @@ for i in range(k):
   # calculate the confusion matrix and some metrics
   cm = get_confusion_matrix(valid_y, predicted_labels)
   plot_confusion_matrix(cm, "Konfusionsmatrix, Fold "+str(i+1))
+  if cumulative_cm is None:
+    cumulative_cm = cm
+  else:
+    cumulative_cm = cumulative_cm + cm
+  
   precision, recall, f_score = calculate_cm_scores(cm)
   print("Precision:", precision, "Mean:", np.array(precision).mean())
   print("Recall:", recall, "Mean:", np.array(recall).mean())
@@ -533,6 +541,10 @@ for i, p in enumerate(precision_per_class):
 print("Mean recall per class:")
 for i, r in enumerate(recall_per_class):
   print(f"{i}: {r / k:.2f}")
+
+print("Cumulative confusion matrix:")
+print(cumulative_cm)
+plot_confusion_matrix(cumulative_cm, "Konfusionsmatrix, aufsummiert")
 
 print(f"first_class: {first_class}")
 print(f"second_class: {second_class}")

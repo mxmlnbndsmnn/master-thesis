@@ -19,7 +19,7 @@ if len(gpu_list) < 1:
 
 file_index = 6
 
-"""
+
 # if using an array job: assume the first argument (after the file path) to
 # represent the file index in the list of all eeg data files
 if len(sys.argv) == 1:
@@ -27,7 +27,7 @@ if len(sys.argv) == 1:
   sys.exit()
 
 file_index = int(sys.argv[1])
-"""
+
 
 eeg_data_folder = "eeg-data"
 # all files
@@ -99,7 +99,7 @@ elif sample_frequency == 1000:
 else:
   raise RuntimeError("Unexpected sample frequency:", sample_frequency)
 
-X_raw = np.array(trials)
+# X_raw = np.array(trials)  # use with "fake" labels (for 2 class problems)
 y = np.array(labels) - 1  # labels should range from 0-4 (?)
 
 num_classes = 5
@@ -109,6 +109,7 @@ num_classes = 5
 # generate the "images" per channel for all trials from 2 classes (1 vs 1)
 # pick trials and labels to do a 1 vs 1 classification
 # only pick trials for two classes, discard the rest
+"""
 num_classes = 2
 
 # compare 0-1, 0-2, 0-3, 0-4, 1-2, 1-3, 1-4, 2-3, 2-4, 3-4
@@ -146,11 +147,11 @@ X = np.array(list_of_trial_data)
 print("X:", type(X), X.shape)
 # should be (num_trials, num_channels, num_f, num_t)
 y = np.array(list_of_fake_labels)
+"""
 
 ###############################################################################
 
 # generate the "images" per channel for all trials - normal (5 classes)
-"""
 list_of_trial_data = []
 
 # CTW images
@@ -165,7 +166,6 @@ for trial, label in zip(trials, labels):
 X = np.array(list_of_trial_data)
 print("X:", type(X), X.shape)
 # should be (num_trials, num_channels, num_f, num_t)
-"""
 
 ###############################################################################
 
@@ -185,7 +185,7 @@ print(f"Total number of trials: {num_trials}")
 def configure_for_performance(ds):
   ds = ds.cache()
   # ds = ds.shuffle(buffer_size=len(ds))
-  ds = ds.batch(32)
+  ds = ds.batch(16)
   ds = ds.prefetch(buffer_size=tf.data.AUTOTUNE)
   return ds
 
@@ -214,7 +214,7 @@ def calculate_cm_scores(cm):
 
 
 # split the dataset for k-fold cross-validation
-k = 5
+k = 10
 valid_size = int(num_trials / k)
 print(f"Create {k} folds of size {valid_size}")
 
@@ -223,6 +223,9 @@ all_acc_train = []
 all_acc_valid = []
 precision_per_class = [0] * num_classes
 recall_per_class = [0] * num_classes
+
+# sum over all confusion matrices
+cumulative_cm = None
 
 for i in range(k):
   print("-"*80)
@@ -241,6 +244,10 @@ for i in range(k):
   model.add(layers.MaxPooling2D())
   model.add(layers.Dropout(0.5))
   model.add(layers.Conv2D(64, 5, padding='same', activation='elu'))
+  model.add(layers.BatchNormalization())
+  model.add(layers.MaxPooling2D())
+  model.add(layers.Dropout(0.5))
+  model.add(layers.Conv2D(128, 5, padding='same', activation='elu'))
   model.add(layers.BatchNormalization())
   model.add(layers.MaxPooling2D())
   model.add(layers.Dropout(0.5))
@@ -302,6 +309,12 @@ for i in range(k):
   cm = confusion_matrix(true_labels, predicted_labels).numpy()
   # plot_confusion_matrix(cm, "Konfusionsmatrix, Fold "+str(i+1))
   print(cm)
+  
+  if cumulative_cm is None:
+    cumulative_cm = cm
+  else:
+    cumulative_cm = cumulative_cm + cm
+  
   precision, recall, f_score = calculate_cm_scores(cm)
   print("Precision:", precision, "Mean:", np.array(precision).mean())
   print("Recall:", recall, "Mean:", np.array(recall).mean())
@@ -337,6 +350,10 @@ print("Mean recall per class:")
 for i, r in enumerate(recall_per_class):
   print(f"{i}: {r / k:.2f}")
 
-print(f"first_class: {first_class}")
-print(f"second_class: {second_class}")
+print("Cumulative confusion matrix:")
+print(cumulative_cm)
+
+# use for 2 class problems
+# print(f"first_class: {first_class}")
+# print(f"second_class: {second_class}")
 
