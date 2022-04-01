@@ -266,13 +266,14 @@ for i in range(k):
   model.compile(optimizer=optimizer,
                 # from_logits=True (if not using a softmax activation as last layer)
                 loss=tf.keras.losses.SparseCategoricalCrossentropy(),
-                metrics=['accuracy'])
+                metrics=["accuracy"])
   
   # model.summary()
   
   # early stopping
   # monitors the loss and stops training after [patience] epochs that show no improvements
-  es_callback = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=4)
+  # TODO (test) monitor validation accuracy instead of loss
+  es_callback = tf.keras.callbacks.EarlyStopping(monitor="accuracy", patience=4)
   
   # train the model
   num_epochs = 80
@@ -281,18 +282,20 @@ for i in range(k):
                       verbose=0, callbacks=[es_callback])
   
   # using early stopping, the actual number of epochs might be lower than num_epochs!
-  true_num_epochs = len(history.history['loss'])
+  true_num_epochs = len(history.history["loss"])
   if true_num_epochs < num_epochs:
     print(f"Early stop training after epoch {true_num_epochs}")
   
   # calculate average metrics
-  # get the highest accuracy for training and validation
+  # get the highest accuracy for validation + training acc for the same epoch
+  best_valid_epoch = np.array(history.history['val_accuracy']).argmax()
   best_valid_acc = np.array(history.history['val_accuracy']).max()
-  acc_train = np.array(history.history['accuracy']).max()
   acc_valid = best_valid_acc
-  best_valid_epoch = np.array(history.history['val_accuracy']).argmax() + 1
-  print(f"Highest validation accuracy ({best_valid_acc:.3f}) at epoch {best_valid_epoch}")
-  
+  print(f"Highest validation accuracy ({best_valid_acc:.3f}) at epoch {best_valid_epoch+1}")
+  # acc_train = np.array(history.history['accuracy']).max()
+  # TODO (test) get the train acc for the same epoch as the valid acc
+  acc_train = np.array(history.history['accuracy'])[best_valid_epoch]
+  # print(history.history)
   all_acc_train.append(acc_train)
   all_acc_valid.append(acc_valid)
   

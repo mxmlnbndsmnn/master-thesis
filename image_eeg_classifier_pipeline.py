@@ -157,7 +157,7 @@ def configure_for_performance(ds):
   # however, the model cannot be created when not using batches
   # input shape is (9,17,7) but expected to be (None,9,17,7)
   # passing in (None,9,17,7) as input_shape seems to not work either
-  ds = ds.batch(32)
+  ds = ds.batch(16)
   ds = ds.prefetch(buffer_size=tf.data.AUTOTUNE)
   return ds
 
@@ -203,6 +203,9 @@ all_acc_valid = []
 precision_per_class = [0] * num_classes
 recall_per_class = [0] * num_classes
 
+# sum over all confusion matrices
+cumulative_cm = None
+
 for i in range(k):
   print("-"*80)
   print(f"Fold {i+1}:")
@@ -219,13 +222,9 @@ for i in range(k):
   
   model.add(layers.Conv2D(32, 5, padding='same', activation='elu', input_shape=input_shape))
   # print(model.output_shape)
-  # model.add(layers.BatchNormalization())
-  
-  # TODO remove? - added this layer again for testing, to reduce time
-  # (model had almost 10m params)
-  # model.add(layers.MaxPooling2D())
-  # model.add(layers.Dropout(0.5))
-  
+  model.add(layers.BatchNormalization())
+  model.add(layers.MaxPooling2D())
+  model.add(layers.Dropout(0.5))
   model.add(layers.Conv2D(64, 5, padding='same', activation='elu'))
   model.add(layers.BatchNormalization())
   model.add(layers.MaxPooling2D())
@@ -246,14 +245,15 @@ for i in range(k):
   model.compile(optimizer=optimizer,
                 # from_logits=True (if not using a softmax activation as last layer)
                 loss=tf.keras.losses.SparseCategoricalCrossentropy(),
-                metrics=['accuracy'])
+                metrics=["accuracy"])
   
   # view the layers of the model
   # model.summary()
   
   # early stopping
-  # monitors the loss and stops training after [patience] epochs that show no improvements
-  es_callback = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=4)
+  # monitors the validation accuracy and stops training after [patience] epochs
+  # that show no improvements
+  es_callback = tf.keras.callbacks.EarlyStopping(monitor="accuracy", patience=4)
   
   # train the model
   num_epochs = 40
@@ -263,18 +263,21 @@ for i in range(k):
   
   # visualize training
   # using early stopping, the actual number of epochs might be lower than num_epochs!
-  true_num_epochs = len(history.history['loss'])
+  true_num_epochs = len(history.history["loss"])
   if true_num_epochs < num_epochs:
     print(f"Early stop training after epoch {true_num_epochs}")
   visualize_training(history, true_num_epochs)
   
   # calculate average metrics
-  # get the highest accuracy for training and validation
+  # get the highest accuracy for validation + training acc for the same epoch
   best_valid_acc = np.array(history.history['val_accuracy']).max()
-  acc_train = np.array(history.history['accuracy']).max()
+  best_valid_epoch = np.array(history.history['val_accuracy']).argmax()
+  # acc_train = np.array(history.history['accuracy']).max()
+  acc_train = np.array(history.history['accuracy'])[best_valid_epoch]
   acc_valid = best_valid_acc
-  best_valid_epoch = np.array(history.history['val_accuracy']).argmax() + 1
-  print(f"Highest validation accuracy ({best_valid_acc:.3f}) at epoch {best_valid_epoch}")
+  print(f"Highest validation accuracy ({best_valid_acc:.3f}) at epoch {best_valid_epoch+1}")
+  
+  print(history.history)
   
   all_acc_train.append(acc_train)
   all_acc_valid.append(acc_valid)
@@ -291,6 +294,12 @@ for i in range(k):
     predicted_labels.append(np.argmax(score))
   cm = get_confusion_matrix(true_labels, predicted_labels)
   plot_confusion_matrix(cm, "Konfusionsmatrix, Fold "+str(i+1))
+  
+  if cumulative_cm is None:
+    cumulative_cm = cm
+  else:
+    cumulative_cm = cumulative_cm + cm
+  
   precision, recall, f_score = calculate_cm_scores(cm)
   print("Precision:", precision, "Mean:", np.array(precision).mean())
   print("Recall:", recall, "Mean:", np.array(recall).mean())
@@ -324,4 +333,7 @@ for i, p in enumerate(precision_per_class):
 print("Mean recall per class:")
 for i, r in enumerate(recall_per_class):
   print(f"{i}: {r / k:.2f}")
+
+print("Cumulative confusion matrix:")
+print(cumulative_cm)
 
