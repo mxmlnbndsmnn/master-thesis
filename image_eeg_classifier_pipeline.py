@@ -47,7 +47,8 @@ ch_names = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'O1', 'O2',
 
 # channels closest to the primary motor cortex
 # F3, Fz, F4, C3, Cz, C4, P3, Pz, P4
-ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
+# ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
+ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20]
 # print([ch_names[i] for i in ch_picks])
 
 # obtain trial data and labels for this subject
@@ -200,8 +201,8 @@ print(f"Create {k} folds of size {valid_size}")
 # calculate the average metrics
 all_acc_train = []
 all_acc_valid = []
-precision_per_class = [0] * num_classes
-recall_per_class = [0] * num_classes
+# precision_per_class = [0] * num_classes
+# recall_per_class = [0] * num_classes
 
 # sum over all confusion matrices
 cumulative_cm = None
@@ -220,18 +221,18 @@ for i in range(k):
   # this actually drags the accuracy down by a significant amount :o
   # layers.Rescaling(scale_factor, input_shape=input_shape),
   
-  model.add(layers.Conv2D(32, 5, padding='same', activation='elu', input_shape=input_shape))
+  model.add(layers.Conv2D(16, 5, padding='same', activation='elu', input_shape=input_shape))
   # print(model.output_shape)
   model.add(layers.BatchNormalization())
   model.add(layers.MaxPooling2D())
   model.add(layers.Dropout(0.5))
-  model.add(layers.Conv2D(64, 5, padding='same', activation='elu'))
+  model.add(layers.Conv2D(32, 5, padding='same', activation='elu'))
   model.add(layers.BatchNormalization())
   model.add(layers.MaxPooling2D())
   model.add(layers.Dropout(0.5))
   model.add(layers.Flatten())
   # do we need more than one dense layer?
-  model.add(layers.Dense(64, activation='elu'))
+  # model.add(layers.Dense(64, activation='elu'))
   model.add(layers.Dense(num_classes, activation='softmax'))  # softmax activation?
   
   # instantiate an optimizer
@@ -256,7 +257,7 @@ for i in range(k):
   es_callback = tf.keras.callbacks.EarlyStopping(monitor="accuracy", patience=4)
   
   # train the model
-  num_epochs = 40
+  num_epochs = 10
   print(f"Training for up to {num_epochs} epochs.")
   history = model.fit(train_ds, validation_data=valid_ds, epochs=num_epochs,
                       verbose=0, callbacks=[es_callback])
@@ -290,8 +291,13 @@ for i in range(k):
   predicted_labels = []
   predictions = model.predict(valid_ds)
   for prediction in predictions:
-    score = tf.nn.softmax(prediction).numpy()
-    predicted_labels.append(np.argmax(score))
+    # score = tf.nn.softmax(prediction).numpy()
+    # since the last layer already uses a softmax activation
+    # there is no need to calculate the softmax again!
+    predicted_labels.append(np.argmax(prediction))
+    # here, one could also query the "confidence" with wich the network decides
+    # which class it chooses by looking at the softmax value for each class
+    # (predictions is an array of size num_classes)
   cm = get_confusion_matrix(true_labels, predicted_labels)
   plot_confusion_matrix(cm, "Konfusionsmatrix, Fold "+str(i+1))
   
@@ -304,11 +310,6 @@ for i in range(k):
   print("Precision:", precision, "Mean:", np.array(precision).mean())
   print("Recall:", recall, "Mean:", np.array(recall).mean())
   print("F1 Score:", f_score, "Mean:", np.array(f_score).mean())
-  
-  for i, p in enumerate(precision):
-    precision_per_class[i] += p
-  for i, r in enumerate(recall):
-    recall_per_class[i] += r
   
   break
 
@@ -326,13 +327,13 @@ print(f"Mean accuracy (train) is {acc_mean_train:.3f} and STD is {acc_std_train:
 print(f"Mean accuracy (valid) is {acc_mean_valid:.3f} and STD is {acc_std_valid:.3f}")
 
 # precision and recall per class
+precision, recall, f_score = calculate_cm_scores(cumulative_cm)
 print("Mean precision per class:")
-for i, p in enumerate(precision_per_class):
-  print(f"{i}: {p / k:.2f}")
-
+for i, p in enumerate(precision):
+  print(f"{i}: {p:.2f}")
 print("Mean recall per class:")
-for i, r in enumerate(recall_per_class):
-  print(f"{i}: {r / k:.2f}")
+for i, r in enumerate(recall):
+  print(f"{i}: {r:.2f}")
 
 print("Cumulative confusion matrix:")
 print(cumulative_cm)

@@ -221,8 +221,8 @@ print(f"Create {k} folds of size {valid_size}")
 # calculate the average metrics
 all_acc_train = []
 all_acc_valid = []
-precision_per_class = [0] * num_classes
-recall_per_class = [0] * num_classes
+# precision_per_class = [0] * num_classes
+# recall_per_class = [0] * num_classes
 
 # sum over all confusion matrices
 cumulative_cm = None
@@ -238,8 +238,12 @@ for i in range(k):
   # create the model
   model = Sequential()
   
-  model.add(layers.Conv2D(32, 5, padding='same', activation='elu', input_shape=input_shape))
+  model.add(layers.Conv2D(16, 5, padding='same', activation='elu', input_shape=input_shape))
   # print(model.output_shape)
+  model.add(layers.BatchNormalization())
+  model.add(layers.MaxPooling2D())
+  model.add(layers.Dropout(0.5))
+  model.add(layers.Conv2D(32, 5, padding='same', activation='elu'))
   model.add(layers.BatchNormalization())
   model.add(layers.MaxPooling2D())
   model.add(layers.Dropout(0.5))
@@ -247,12 +251,8 @@ for i in range(k):
   model.add(layers.BatchNormalization())
   model.add(layers.MaxPooling2D())
   model.add(layers.Dropout(0.5))
-  model.add(layers.Conv2D(128, 5, padding='same', activation='elu'))
-  model.add(layers.BatchNormalization())
-  model.add(layers.MaxPooling2D())
-  model.add(layers.Dropout(0.5))
   model.add(layers.Flatten())
-  model.add(layers.Dense(64, activation='elu'))
+  # model.add(layers.Dense(64, activation='elu'))
   model.add(layers.Dense(num_classes, activation='softmax'))
   
   # instantiate an optimizer
@@ -307,8 +307,10 @@ for i in range(k):
   predicted_labels = []
   predictions = model.predict(valid_ds)
   for prediction in predictions:
-    score = tf.nn.softmax(prediction).numpy()
-    predicted_labels.append(np.argmax(score))
+    # score = tf.nn.softmax(prediction).numpy()
+    # since the last layer already uses a softmax activation
+    # there is no need to calculate the softmax again!
+    predicted_labels.append(np.argmax(prediction))
   cm = confusion_matrix(true_labels, predicted_labels).numpy()
   # plot_confusion_matrix(cm, "Konfusionsmatrix, Fold "+str(i+1))
   print(cm)
@@ -323,10 +325,10 @@ for i in range(k):
   print("Recall:", recall, "Mean:", np.array(recall).mean())
   print("F1 Score:", f_score, "Mean:", np.array(f_score).mean())
   
-  for i, p in enumerate(precision):
-    precision_per_class[i] += p
-  for i, r in enumerate(recall):
-    recall_per_class[i] += r
+  # for i, p in enumerate(precision):
+  #   precision_per_class[i] += p
+  # for i, r in enumerate(recall):
+  #   recall_per_class[i] += r
   
   # for quick testing, stop after the first fold
   # break
@@ -344,17 +346,18 @@ acc_std_valid = all_acc_valid.std()
 print(f"Mean accuracy (train) is {acc_mean_train:.3f} and STD is {acc_std_train:.3f}")
 print(f"Mean accuracy (valid) is {acc_mean_valid:.3f} and STD is {acc_std_valid:.3f}")
 
-# precision and recall per class
-print("Mean precision per class:")
-for i, p in enumerate(precision_per_class):
-  print(f"{i}: {p / k:.2f}")
-
-print("Mean recall per class:")
-for i, r in enumerate(recall_per_class):
-  print(f"{i}: {r / k:.2f}")
 
 print("Cumulative confusion matrix:")
 print(cumulative_cm)
+
+# precision and recall per class
+precision, recall, f_score = calculate_cm_scores(cumulative_cm)
+print("Mean precision per class:")
+for i, p in enumerate(precision):
+  print(f"{i}: {p:.2f}")
+print("Mean recall per class:")
+for i, r in enumerate(recall):
+  print(f"{i}: {r:.2f}")
 
 # use for 2 class problems
 # print(f"first_class: {first_class}")
