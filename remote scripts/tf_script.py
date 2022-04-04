@@ -221,8 +221,6 @@ print(f"Create {k} folds of size {valid_size}")
 # calculate the average metrics
 all_acc_train = []
 all_acc_valid = []
-# precision_per_class = [0] * num_classes
-# recall_per_class = [0] * num_classes
 
 # sum over all confusion matrices
 cumulative_cm = None
@@ -238,19 +236,19 @@ for i in range(k):
   # create the model
   model = Sequential()
   
-  model.add(layers.Conv2D(16, 5, padding='same', activation='elu', input_shape=input_shape))
+  model.add(layers.Conv2D(20, 5, padding='same', activation='elu', input_shape=input_shape))
   # print(model.output_shape)
   model.add(layers.BatchNormalization())
   model.add(layers.MaxPooling2D())
-  model.add(layers.Dropout(0.5))
-  model.add(layers.Conv2D(32, 5, padding='same', activation='elu'))
+  model.add(layers.Dropout(0.3))
+  model.add(layers.Conv2D(40, 7, padding='same', activation='elu'))
   model.add(layers.BatchNormalization())
   model.add(layers.MaxPooling2D())
-  model.add(layers.Dropout(0.5))
-  model.add(layers.Conv2D(64, 5, padding='same', activation='elu'))
+  model.add(layers.Dropout(0.3))
+  model.add(layers.Conv2D(80, 7, padding='same', activation='elu'))
   model.add(layers.BatchNormalization())
   model.add(layers.MaxPooling2D())
-  model.add(layers.Dropout(0.5))
+  model.add(layers.Dropout(0.3))
   model.add(layers.Flatten())
   # model.add(layers.Dense(64, activation='elu'))
   model.add(layers.Dense(num_classes, activation='softmax'))
@@ -268,11 +266,9 @@ for i in range(k):
                 loss=tf.keras.losses.SparseCategoricalCrossentropy(),
                 metrics=["accuracy"])
   
-  # model.summary()
-  
   # early stopping
-  # monitors the loss and stops training after [patience] epochs that show no improvements
-  # TODO (test) monitor validation accuracy instead of loss
+  # monitors the validation accuracy and stops training after [patience] epochs
+  # that show no improvements
   es_callback = tf.keras.callbacks.EarlyStopping(monitor="accuracy", patience=4)
   
   # train the model
@@ -291,10 +287,10 @@ for i in range(k):
   best_valid_epoch = np.array(history.history['val_accuracy']).argmax()
   best_valid_acc = np.array(history.history['val_accuracy']).max()
   acc_valid = best_valid_acc
-  print(f"Highest validation accuracy ({best_valid_acc:.3f}) at epoch {best_valid_epoch+1}")
-  # acc_train = np.array(history.history['accuracy']).max()
-  # TODO (test) get the train acc for the same epoch as the valid acc
+  # get the train acc for the same epoch as the valid acc
   acc_train = np.array(history.history['accuracy'])[best_valid_epoch]
+  print(f"Highest validation accuracy ({best_valid_acc:.3f}) at epoch "\
+        f"{best_valid_epoch+1} (training accuracy is {acc_train:.3f})")
   # print(history.history)
   all_acc_train.append(acc_train)
   all_acc_valid.append(acc_valid)
@@ -324,14 +320,7 @@ for i in range(k):
   print("Precision:", precision, "Mean:", np.array(precision).mean())
   print("Recall:", recall, "Mean:", np.array(recall).mean())
   print("F1 Score:", f_score, "Mean:", np.array(f_score).mean())
-  
-  # for i, p in enumerate(precision):
-  #   precision_per_class[i] += p
-  # for i, r in enumerate(recall):
-  #   recall_per_class[i] += r
-  
-  # for quick testing, stop after the first fold
-  # break
+
 
 # only need to print this once
 model.summary()
