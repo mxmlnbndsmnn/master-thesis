@@ -269,7 +269,9 @@ for i in range(k):
   # early stopping
   # monitors the validation accuracy and stops training after [patience] epochs
   # that show no improvements
-  es_callback = tf.keras.callbacks.EarlyStopping(monitor="accuracy", patience=4)
+  es_callback = tf.keras.callbacks.EarlyStopping(monitor="accuracy",
+                                                 patience=4,
+                                                 restore_best_weights=True)
   
   # train the model
   num_epochs = 80
