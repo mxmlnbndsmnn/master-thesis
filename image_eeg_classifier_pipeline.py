@@ -221,19 +221,22 @@ for i in range(k):
   # this actually drags the accuracy down by a significant amount :o
   # layers.Rescaling(scale_factor, input_shape=input_shape),
   
-  model.add(layers.Conv2D(16, 5, padding='same', activation='elu', input_shape=input_shape))
+  model.add(layers.Conv2D(30, 5, padding='same', activation='elu', input_shape=input_shape))
   # print(model.output_shape)
   model.add(layers.BatchNormalization())
-  model.add(layers.MaxPooling2D())
-  model.add(layers.Dropout(0.5))
-  model.add(layers.Conv2D(32, 5, padding='same', activation='elu'))
+  model.add(layers.MaxPooling2D(pool_size=(3,1)))
+  model.add(layers.Dropout(0.3))
+  model.add(layers.Conv2D(60, 7, padding='same', activation='elu'))
   model.add(layers.BatchNormalization())
-  model.add(layers.MaxPooling2D())
-  model.add(layers.Dropout(0.5))
+  model.add(layers.MaxPooling2D(pool_size=(3,1)))
+  model.add(layers.Dropout(0.3))
+  model.add(layers.Conv2D(90, 7, padding='same', activation='elu'))
+  model.add(layers.BatchNormalization())
+  model.add(layers.MaxPooling2D(pool_size=(3,1)))
+  model.add(layers.Dropout(0.3))
   model.add(layers.Flatten())
-  # do we need more than one dense layer?
   # model.add(layers.Dense(64, activation='elu'))
-  model.add(layers.Dense(num_classes, activation='softmax'))  # softmax activation?
+  model.add(layers.Dense(num_classes, activation='softmax'))
   
   # instantiate an optimizer
   learn_rate = 0.001
