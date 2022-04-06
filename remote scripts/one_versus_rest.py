@@ -175,9 +175,9 @@ num_epochs = 80
 print(f"Training for up to {num_epochs} epochs.")
 
 num_trials = X.shape[0]
-train_size = int(0.7 * num_trials)
-valid_size = int(0.15 * num_trials)
-test_size = int(0.15 * num_trials)
+train_size = int(0.6 * num_trials)
+valid_size = int(0.2 * num_trials)
+test_size = int(0.2 * num_trials)
 
 for target_class in range(5):
   y = labels_binary[target_class]
@@ -275,6 +275,7 @@ for index, prediction in zip(range(test_size), predictions):
   
   # confidences for all classes have been collected, choose the largest
   confidences = np.array(confidences)
+  print(confidences.round(3))
   selected_class = confidences.argmax()
   final_predictions.append(selected_class)
   if num_claims == 1:
@@ -289,11 +290,10 @@ for index, prediction in zip(range(test_size), predictions):
   print(f"True label is: {true_test_labels[index]}")
   print("-"*80)
   
-  # break
 
 # now one can compare the final_predictions with the true_test_labels
 final_predictions = np.array(final_predictions)
-print(final_predictions==true_test_labels)
+# print(final_predictions==true_test_labels)
 
 # for predicted_label, true_label in zip(final_predictions, true_test_labels):
   # print(f"Correct: {true_label} - Classified: {predicted_label}")
