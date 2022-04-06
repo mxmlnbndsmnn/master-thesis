@@ -195,19 +195,12 @@ for target_class in range(5):
   # create the model
   model = Sequential()
   
-  model.add(layers.Conv2D(30, 5, padding='same', activation='elu', input_shape=input_shape))
+  model.add(layers.Conv2D(32, 5, padding='same', activation='elu', input_shape=input_shape))
   # print(model.output_shape)
+  model.add(layers.Conv2D(64, 5, padding='same', activation='elu'))
   model.add(layers.BatchNormalization())
-  model.add(layers.MaxPooling2D(pool_size=(3,1)))
-  model.add(layers.Dropout(0.3))
-  model.add(layers.Conv2D(60, 7, padding='same', activation='elu'))
-  model.add(layers.BatchNormalization())
-  model.add(layers.MaxPooling2D(pool_size=(3,1)))
-  model.add(layers.Dropout(0.3))
-  model.add(layers.Conv2D(90, 7, padding='same', activation='elu'))
-  model.add(layers.BatchNormalization())
-  model.add(layers.MaxPooling2D(pool_size=(3,1)))
-  model.add(layers.Dropout(0.3))
+  model.add(layers.MaxPooling2D())
+  model.add(layers.Dropout(0.5))
   model.add(layers.Flatten())
   model.add(layers.Dense(2, activation='softmax'))
   
@@ -258,6 +251,7 @@ for target_class, model in zip(range(5), models):
 print("-"*80)
 final_predictions = []  # class 0-4; combined from all binary classifiers
 for index, prediction in zip(range(test_size), predictions):
+  print(f"Trial nr. {index+1}")
   confidences = []  # for this one trial; per target class (= per model)
   num_claims = 0
   for target_class, model in zip(range(5), models):
@@ -271,7 +265,6 @@ for index, prediction in zip(range(test_size), predictions):
       num_claims += 1
       # print(f"Model {target_class} claims trial {index} belongs to this class.")
       # print(f"Confidence: {confidence }")
-    # print(f"True label is: {true_test_labels[index]}")
   
   # confidences for all classes have been collected, choose the largest
   confidences = np.array(confidences)
@@ -285,18 +278,16 @@ for index, prediction in zip(range(test_size), predictions):
     # no model or more than one model think this trial belongs to it's class
     # select the model (class) with the highest confidence
     print(f"{num_claims} models identified the class. Pick one.")
-    print(confidences)
-  print(f"Select class: {selected_class}")
-  print(f"True label is: {true_test_labels[index]}")
+  correct_class = true_test_labels[index]
+  if selected_class == correct_class:
+    print(f"Selected correct class: {selected_class}")
+  else:
+    print(f"Select class: {selected_class}, true label is: {correct_class}")
   print("-"*80)
   
 
 # now one can compare the final_predictions with the true_test_labels
 final_predictions = np.array(final_predictions)
-# print(final_predictions==true_test_labels)
-
-# for predicted_label, true_label in zip(final_predictions, true_test_labels):
-  # print(f"Correct: {true_label} - Classified: {predicted_label}")
 
 cm = confusion_matrix(true_test_labels, final_predictions).numpy()
 print("Confusion matrix:")
