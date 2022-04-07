@@ -234,6 +234,27 @@ for target_class in range(5):
   acc_valid = best_valid_acc
   print(f"Highest validation accuracy ({best_valid_acc:.3f}) at epoch {best_valid_epoch+1}")
   
+  # also get precision and recall for this model (validation dataset)
+  true_labels = []
+  for sample_batch, label_batch in valid_ds:
+    for label in label_batch:
+      true_labels.append(label.numpy())
+  
+  predicted_labels = []
+  predictions = model.predict(valid_ds)
+  for prediction in predictions:
+    predicted_labels.append(np.argmax(prediction))
+  cm = confusion_matrix(true_labels, predicted_labels).numpy()
+  print(f"Confusion matrix {target_class+1}:")
+  print(cm)
+  precision, recall, f_score = calculate_cm_scores(cm)
+  print("Mean precision per class:")
+  for i, p in enumerate(precision):
+    print(f"{i}: {p:.2f}")
+  print("Mean recall per class:")
+  for i, r in enumerate(recall):
+    print(f"{i}: {r:.2f}")
+  
   # store the model for this target class to be used for predictions later
   models.append(model)
 
