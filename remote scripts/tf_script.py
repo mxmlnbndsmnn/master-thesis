@@ -236,22 +236,23 @@ for i in range(k):
   # create the model
   model = Sequential()
   
-  model.add(layers.Conv2D(30, 5, padding='same', activation='elu', input_shape=input_shape))
+  model.add(layers.Conv2D(30, 5, padding="same", activation="elu", input_shape=input_shape))
   # print(model.output_shape)
   model.add(layers.BatchNormalization())
   model.add(layers.MaxPooling2D(pool_size=(3,1)))
   model.add(layers.Dropout(0.3))
-  model.add(layers.Conv2D(60, 7, padding='same', activation='elu'))
+  model.add(layers.Conv2D(60, 7, padding="same", activation="elu"))
   model.add(layers.BatchNormalization())
   model.add(layers.MaxPooling2D(pool_size=(3,1)))
   model.add(layers.Dropout(0.3))
-  model.add(layers.Conv2D(90, 7, padding='same', activation='elu'))
+  model.add(layers.Conv2D(90, 7, padding="same", activation="elu"))
   model.add(layers.BatchNormalization())
   model.add(layers.MaxPooling2D(pool_size=(3,1)))
   model.add(layers.Dropout(0.3))
   model.add(layers.Flatten())
-  # model.add(layers.Dense(64, activation='elu'))
-  model.add(layers.Dense(num_classes, activation='softmax'))
+  model.add(layers.Dense(64, activation="elu"))
+  model.add(layers.Dense(32, activation="elu"))
+  model.add(layers.Dense(num_classes, activation="softmax"))
   
   # instantiate an optimizer
   learn_rate = 0.001
