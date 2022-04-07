@@ -198,7 +198,7 @@ for target_class in range(5):
   model.add(layers.Conv2D(32, 5, padding='same', activation='elu', input_shape=input_shape))
   # print(model.output_shape)
   model.add(layers.Conv2D(64, 5, padding='same', activation='elu'))
-  model.add(layers.BatchNormalization())
+  # model.add(layers.BatchNormalization())
   model.add(layers.MaxPooling2D())
   model.add(layers.Dropout(0.5))
   model.add(layers.Flatten())
@@ -212,10 +212,10 @@ for target_class in range(5):
   # compile the model
   model.compile(optimizer=optimizer,
                 loss=tf.keras.losses.SparseCategoricalCrossentropy(),
-                metrics=["accuracy"])
+                metrics=["mse", "accuracy"])
   
   # early stopping
-  es_callback = tf.keras.callbacks.EarlyStopping(monitor="accuracy",
+  es_callback = tf.keras.callbacks.EarlyStopping(monitor="mse",
                                                  patience=4,
                                                  restore_best_weights=True)
   

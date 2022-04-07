@@ -179,9 +179,9 @@ num_epochs = 8
 print(f"Training for up to {num_epochs} epochs.")
 
 num_trials = X.shape[0]
-train_size = int(0.7 * num_trials)
-valid_size = int(0.15 * num_trials)
-test_size = int(0.15 * num_trials)
+train_size = int(0.6 * num_trials)
+valid_size = int(0.2 * num_trials)
+test_size = int(0.2 * num_trials)
 
 for target_class in range(5):
   y = labels_binary[target_class]
@@ -202,7 +202,7 @@ for target_class in range(5):
   model.add(layers.Conv2D(32, 5, padding='same', activation='elu', input_shape=input_shape))
   # print(model.output_shape)
   model.add(layers.Conv2D(64, 5, padding='same', activation='elu'))
-  model.add(layers.BatchNormalization())
+  # model.add(layers.BatchNormalization())
   model.add(layers.MaxPooling2D())
   model.add(layers.Dropout(0.5))
   model.add(layers.Flatten())
@@ -215,11 +215,13 @@ for target_class in range(5):
   
   # compile the model
   model.compile(optimizer=optimizer,
+                # sparse categorical crossentropy for integer labels
+                # non-sparse for one-hot encodings (not used here)
                 loss=tf.keras.losses.SparseCategoricalCrossentropy(),
-                metrics=["accuracy"])
+                metrics=["mse", "accuracy"])
   
   # early stopping
-  es_callback = tf.keras.callbacks.EarlyStopping(monitor="accuracy",
+  es_callback = tf.keras.callbacks.EarlyStopping(monitor="mse",
                                                  patience=4,
                                                  restore_best_weights=True)
   
@@ -303,7 +305,7 @@ for index, prediction in zip(range(test_size), predictions):
   else:
     # no model or more than one model think this trial belongs to it's class
     # select the model (class) with the highest confidence
-    print("{num_claims} models identified the class. Pick one.")
+    print(f"{num_claims} models identified the class. Pick one.")
   
   correct_class = true_test_labels[index]
   if selected_class == correct_class:
