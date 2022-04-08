@@ -18,15 +18,17 @@ from numpy import savetxt, loadtxt
 import matplotlib.pyplot as plt
 
 from eeg_data_loader import eeg_data_loader
-from create_stft_image import create_stft_image_for_trial, plot_trial_stft
+from create_eeg_image import create_stft_image_for_trial, plot_trial_stft
+
+from sys import exit
 
 
 eeg_data_folder = "A large MI EEG dataset for EEG BCI"
 
 # subject_data_file = "5F-SubjectB-151110-5St-SGLHand.mat"
 # subject_data_file = "5F-SubjectC-151204-5St-SGLHand.mat"
-# subject_data_file = "5F-SubjectF-151027-5St-SGLHand.mat"
-subject_data_file = "5F-SubjectF-160210-5St-SGLHand-HFREQ.mat"
+subject_data_file = "5F-SubjectF-151027-5St-SGLHand.mat"
+# subject_data_file = "5F-SubjectF-160210-5St-SGLHand-HFREQ.mat"
 
 # place where the STFT images should be stored
 # parent folder
@@ -59,8 +61,9 @@ sample_frequency = eeg_data_loader_instance.sample_frequency
 num_samples = eeg_data_loader_instance.num_samples
 
 
+"""
 # plot raw eeg data
-if len(events) > 0 and False:
+if len(events) > 0:
     first_event = events[0]
     # inspect a time fram from event onset (change in marker) for 1 second
     # (1 multiplied with the sample frequency)
@@ -70,7 +73,7 @@ if len(events) > 0 and False:
     stop = first_event['stop'] + 1
     
     # display some raw data
-    picks = [1, 2, 3, 4, 5]
+    picks = ch_picks  # [1, 2, 3, 4, 5]
     
     # stack multiple subplots in one dimension
     fig = plt.figure()
@@ -90,7 +93,83 @@ if len(events) > 0 and False:
     # hide x labels between subplots
     for ax in axs:
         ax.label_outer()
+"""
 
+
+# second-order sections
+def butter_bandpass_sos(lowcut, highcut, sample_freq, order=5):
+  nyq = sample_freq * 0.5
+  low = lowcut / nyq
+  high = highcut / nyq
+  sos = signal.butter(order, [low, high], analog=False, btype="bandpass", output="sos")
+  return sos
+
+
+# default axis is -1, but here we want to filter data for each channel
+def butter_bandpass_filter(data, lowcut, highcut, sample_freq, order=5, axis=1):
+  sos = butter_bandpass_sos(lowcut, highcut, sample_freq, order=order)
+  y = signal.sosfilt(sos, data, axis=axis)
+  return y
+
+
+
+# plot raw eeg data
+if len(events) > 0:
+  first_event = events[0]
+  # inspect a time fram from event onset (change in marker) for 1 second
+  # (1 multiplied with the sample frequency)
+  start = first_event['start']
+  # stop = start_i + sample_frequency
+  # add one because the range (end) is exclusive
+  stop = first_event['stop'] + 1
+  
+  picks = ch_picks
+  n_picks = len(picks)
+  
+  # stack multiple subplots in one dimension
+  fig = plt.figure()
+  plt.title("Raw signal")
+  gridspec = fig.add_gridspec(n_picks, hspace=0)
+  axs = gridspec.subplots(sharex=True, sharey=True)
+  
+  for pick_index, ch_index in zip(range(n_picks), picks):
+    # x = range(num_samples)
+    x = range(start, stop)
+    # y = [eeg_data[i][ch_index] for i in range(num_samples)]
+    y = [eeg_data[i][ch_index] for i in range(start, stop)]
+    # plt.plot(x,y)
+    axs[pick_index].plot(x, y)
+    # parameter ylim=(-8.0,8.0)
+    axs[pick_index].set(ylabel=ch_names[ch_index])
+  
+  # hide x labels between subplots
+  for ax in axs:
+    ax.label_outer()
+  
+  # again but with filtered data
+  filtered_eeg_data = butter_bandpass_filter(eeg_data, 4.0, 40.0, sample_frequency, order=6, axis=1)
+  
+  # stack multiple subplots in one dimension
+  fig = plt.figure()
+  plt.title("Filtered signal")
+  gridspec = fig.add_gridspec(n_picks, hspace=0)
+  axs = gridspec.subplots(sharex=True, sharey=True)
+  
+  for pick_index, ch_index in zip(range(n_picks), picks):
+    x = range(start, stop)
+    y = [filtered_eeg_data[i][ch_index] for i in range(start, stop)]
+    # plt.plot(x,y)
+    axs[pick_index].plot(x, y)
+    # parameter ylim=(-8.0,8.0)
+    axs[pick_index].set(ylabel=ch_names[ch_index])
+  
+  # hide x labels between subplots
+  for ax in axs:
+    ax.label_outer()
+
+
+
+exit()
 
 
 trials, labels = eeg_data_loader_instance.get_trials_x_and_y()

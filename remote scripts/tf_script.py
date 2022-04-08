@@ -1,6 +1,7 @@
 import sys
 from os import path as os_path
 import numpy as np
+import scipy.signal as signal
 # import matplotlib.pyplot as plt
 from eeg_data_loader import eeg_data_loader
 from create_eeg_image import create_ctw_for_channel
@@ -103,6 +104,28 @@ else:
 y = np.array(labels) - 1  # labels should range from 0-4 (?)
 
 num_classes = 5
+
+###############################################################################
+
+# apply butterworth bandpass filter
+
+# second-order sections
+def butter_bandpass_sos(lowcut, highcut, sample_freq, order=5):
+  nyq = sample_freq * 0.5
+  low = lowcut / nyq
+  high = highcut / nyq
+  sos = signal.butter(order, [low, high], analog=False, btype="bandpass", output="sos")
+  return sos
+
+
+# default axis is -1, but here we want to filter data for each channel
+def butter_bandpass_filter(data, lowcut, highcut, sample_freq, order=5, axis=1):
+  sos = butter_bandpass_sos(lowcut, highcut, sample_freq, order=order)
+  y = signal.sosfilt(sos, data, axis=axis)
+  return y
+
+print("Bandpass filter EEG data (4-40Hz)")
+eeg_data = butter_bandpass_filter(eeg_data, 4.0, 40.0, sample_frequency, order=6, axis=1)
 
 ###############################################################################
 
@@ -250,7 +273,7 @@ for i in range(k):
   model.add(layers.MaxPooling2D(pool_size=(3,1)))
   model.add(layers.Dropout(0.3))
   model.add(layers.Flatten())
-  model.add(layers.Dense(64, activation="elu"))
+  # model.add(layers.Dense(64, activation="elu"))
   model.add(layers.Dense(32, activation="elu"))
   model.add(layers.Dense(num_classes, activation="softmax"))
   
