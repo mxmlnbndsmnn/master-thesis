@@ -99,7 +99,16 @@ for subject_data_file in subject_data_files:
 # print(labels.shape)
 print(f"Combined number of trials: {trials.shape[0]}")
 
-sys.exit()
+###############################################################################
+
+# shuffle both trials and labels in unison
+def parallel_shuffle(a1, a2):
+  assert len(a1) == len(a2)
+  permutation = np.random.permutation(len(a1))
+  return [a1[i] for i in permutation], [a2[i] for i in permutation]
+
+
+trials, labels = parallel_shuffle(trials, labels)
 
 y = np.array(labels) - 1  # labels should range from 0-4 (?)
 num_classes = 5

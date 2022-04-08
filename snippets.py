@@ -7,11 +7,25 @@ Created on Tue Jan 25 20:23:12 2022
 
 import numpy as np
 # import tensorflow as tf
-from tensorflow.math import confusion_matrix
-import seaborn as sn
-import matplotlib.pyplot as plt
+# from tensorflow.math import confusion_matrix
+# import seaborn as sn
+# import matplotlib.pyplot as plt
 
 
+a = np.array([1,2,3,4,5,6])
+b = np.array([10,20,30,40,50,60])
+
+def parallel_shuffle(a1, a2):
+  assert len(a1) == len(a2)
+  permutation = np.random.permutation(len(a1))
+  return [a1[i] for i in permutation], [a2[i] for i in permutation]
+
+
+a, b = parallel_shuffle(a, b)
+print(a,b)
+
+
+"""
 if False:
   true_labels = [1,2,3,4,5,1,2,3,4,5,1,2,3,4,5]
   predicted_labels = [1,2,3,4,4,2,1,3,4,5,3,4,1,4,2]
@@ -47,4 +61,4 @@ if True:
     
     print(valid_X)
     print(valid_y)
-  
+"""
