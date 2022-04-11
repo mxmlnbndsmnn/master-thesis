@@ -127,8 +127,11 @@ if len(events) > 0:
   n_picks = len(picks)
   
   # stack multiple subplots in one dimension
-  fig = plt.figure()
-  plt.title("Raw signal")
+  fig = plt.figure(figsize=(20,15))
+  # plt.title("Raw signal")
+  plt.title("EEG-Signal, kein Filter")
+  # plt.xticks([])
+  plt.yticks([])  # remove y ticks from "parent" plot
   gridspec = fig.add_gridspec(n_picks, hspace=0)
   axs = gridspec.subplots(sharex=True, sharey=True)
   
@@ -140,18 +143,23 @@ if len(events) > 0:
     # plt.plot(x,y)
     axs[pick_index].plot(x, y)
     # parameter ylim=(-8.0,8.0)
-    axs[pick_index].set(ylabel=ch_names[ch_index])
+    # labelpad to add some space between the ylabel and the axis
+    axs[pick_index].set_ylabel(ch_names[ch_index], rotation="horizontal", labelpad=10)
+    axs[pick_index].set_xticks([])  # remove frame index on x axis
+    axs[pick_index].set_yticks([])  # remove scale on y axis
   
   # hide x labels between subplots
   for ax in axs:
     ax.label_outer()
   
-  # again but with filtered data
-  filtered_eeg_data = butter_bandpass_filter(eeg_data, 4.0, 40.0, sample_frequency, order=6, axis=1)
+  # again but with filtered data, 3rd order butterworth
+  filtered_eeg_data = butter_bandpass_filter(eeg_data, 4.0, 40.0, sample_frequency, order=3, axis=1)
   
   # stack multiple subplots in one dimension
-  fig = plt.figure()
-  plt.title("Filtered signal")
+  fig = plt.figure(figsize=(20,15))
+  # plt.title("Filtered signal, 3rd order Butterworth filter")
+  plt.title("Butterworth Filter 3. Ordnung")
+  plt.yticks([])  # remove y ticks from "parent" plot
   gridspec = fig.add_gridspec(n_picks, hspace=0)
   axs = gridspec.subplots(sharex=True, sharey=True)
   
@@ -161,7 +169,37 @@ if len(events) > 0:
     # plt.plot(x,y)
     axs[pick_index].plot(x, y)
     # parameter ylim=(-8.0,8.0)
-    axs[pick_index].set(ylabel=ch_names[ch_index])
+    axs[pick_index].set_ylabel(ch_names[ch_index], rotation="horizontal", labelpad=10)
+    axs[pick_index].set_xticks([])  # remove frame index on x axis
+    axs[pick_index].set_yticks([])  # remove scale on y axis
+  
+  # hide x labels between subplots
+  for ax in axs:
+    ax.label_outer()
+
+
+  # again but with filtered data, 6th order butterworth
+  filtered_eeg_data = butter_bandpass_filter(eeg_data, 4.0, 40.0, sample_frequency, order=6, axis=1)
+  
+  # stack multiple subplots in one dimension
+  fig = plt.figure(figsize=(20,15))
+  # plt.title("Filtered signal, 6th order Butterworth filter")
+  plt.title("Butterworth Filter 6. Ordnung")
+  plt.yticks([])  # remove y ticks from "parent" plot
+  gridspec = fig.add_gridspec(n_picks, hspace=0)
+  axs = gridspec.subplots(sharex=True, sharey=True)
+  
+  for pick_index, ch_index in zip(range(n_picks), picks):
+    x = range(start, stop)
+    y = [filtered_eeg_data[i][ch_index] for i in range(start, stop)]
+    # plt.plot(x,y)
+    axs[pick_index].plot(x, y)
+    # parameter ylim=(-8.0,8.0)
+    # axs[pick_index].set(ylabel=ch_names[ch_index])
+    axs[pick_index].set_ylabel(ch_names[ch_index], rotation="horizontal", labelpad=10)
+    axs[pick_index].set_xticks([])  # remove frame index on x axis
+    axs[pick_index].set_yticks([])  # remove scale on y axis
+    
   
   # hide x labels between subplots
   for ax in axs:
