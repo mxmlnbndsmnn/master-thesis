@@ -127,7 +127,7 @@ def butter_bandpass_filter(data, lowcut, highcut, sample_freq, order=3, axis=1):
   return y
 
 print("Bandpass filter EEG data (4-40Hz)")
-eeg_data = butter_bandpass_filter(eeg_data, 4.0, 40.0, sample_frequency, order=6, axis=1)
+eeg_data = butter_bandpass_filter(eeg_data, 4.0, 40.0, sample_frequency, order=3, axis=1)
 
 ###############################################################################
 
