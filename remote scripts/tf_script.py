@@ -76,8 +76,10 @@ print(f"Load subject data from path: {subject_data_path}")
 
 # pick 9 channels closest to the motor cortex
 # ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
-# pick a few more channels, too
+# pick all channels (except reference)
 ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+# pick all except O1 and O2 (back of the head)
+# ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 16, 17, 18, 19, 20]
 
 ch_names = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'O1', 'O2',
             'A1', 'A2', 'F7', 'F8', 'T3', 'T4', 'T5', 'T6', 'Fz', 'Cz', 'Pz', 'X3']
@@ -110,7 +112,7 @@ num_classes = 5
 # apply butterworth bandpass filter
 
 # second-order sections
-def butter_bandpass_sos(lowcut, highcut, sample_freq, order=5):
+def butter_bandpass_sos(lowcut, highcut, sample_freq, order=3):
   nyq = sample_freq * 0.5
   low = lowcut / nyq
   high = highcut / nyq
@@ -119,7 +121,7 @@ def butter_bandpass_sos(lowcut, highcut, sample_freq, order=5):
 
 
 # default axis is -1, but here we want to filter data for each channel
-def butter_bandpass_filter(data, lowcut, highcut, sample_freq, order=5, axis=1):
+def butter_bandpass_filter(data, lowcut, highcut, sample_freq, order=3, axis=1):
   sos = butter_bandpass_sos(lowcut, highcut, sample_freq, order=order)
   y = signal.sosfilt(sos, data, axis=axis)
   return y
