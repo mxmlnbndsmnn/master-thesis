@@ -31,6 +31,15 @@ if len(sys.argv) == 1:
 file_index = int(sys.argv[1])
 
 
+# exclude Fp1 and Fp2
+ch_picks = [2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+
+# run the same file twice for all subjects
+if file_index > 18:
+  # exclude T3 and T4
+  ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 16, 17, 18, 19, 20]
+  file_index -= 19
+
 eeg_data_folder = "eeg-data"
 # all files
 subject_data_files = ['5F-SubjectA-160405-5St-SGLHand.mat',  # 0
@@ -67,7 +76,7 @@ print(f"Load subject data from path: {subject_data_path}")
 # pick all except T5 and T6
 # ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 18, 19, 20]
 # pick all except F7 and F8
-ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 14, 15, 16, 17, 18, 19, 20]
+# ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 14, 15, 16, 17, 18, 19, 20]
 
 ch_names = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'O1', 'O2',
             'A1', 'A2', 'F7', 'F8', 'T3', 'T4', 'T5', 'T6', 'Fz', 'Cz', 'Pz', 'X3']
