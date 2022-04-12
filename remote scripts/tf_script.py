@@ -1,5 +1,6 @@
 import sys
 from os import path as os_path
+import time
 import numpy as np
 import scipy.signal as signal
 # import matplotlib.pyplot as plt
@@ -52,23 +53,6 @@ subject_data_files = ['5F-SubjectA-160405-5St-SGLHand.mat',  # 0
                       '5F-SubjectI-160719-5St-SGLHand-HFREQ.mat',
                       '5F-SubjectI-160723-5St-SGLHand-HFREQ.mat']  # 18
 
-# 1000Hz files only
-"""
-subject_data_files = ['5F-SubjectA-160408-5St-SGLHand-HFREQ.mat',  # 0
-                      '5F-SubjectB-160309-5St-SGLHand-HFREQ.mat',
-                      '5F-SubjectB-160311-5St-SGLHand-HFREQ.mat',
-                      '5F-SubjectC-160429-5St-SGLHand-HFREQ.mat',
-                      '5F-SubjectE-160321-5St-SGLHand-HFREQ.mat',
-                      '5F-SubjectE-160415-5St-SGLHand-HFREQ.mat',
-                      '5F-SubjectE-160429-5St-SGLHand-HFREQ.mat',
-                      '5F-SubjectF-160210-5St-SGLHand-HFREQ.mat',
-                      '5F-SubjectG-160413-5St-SGLHand-HFREQ.mat',
-                      '5F-SubjectG-160428-5St-SGLHand-HFREQ.mat',
-                      '5F-SubjectH-160804-5St-SGLHand-HFREQ.mat',
-                      '5F-SubjectI-160719-5St-SGLHand-HFREQ.mat',
-                      '5F-SubjectI-160723-5St-SGLHand-HFREQ.mat']  # 12
-"""
-
 subject_data_file = subject_data_files[file_index]
 subject_data_path = os_path.join(eeg_data_folder, subject_data_file)
 
@@ -77,14 +61,18 @@ print(f"Load subject data from path: {subject_data_path}")
 # pick 9 channels closest to the motor cortex
 # ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
 # pick all channels (except reference)
-ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+# ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20]
 # pick all except O1 and O2 (back of the head)
 # ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+# pick all except T5 and T6
+ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 18, 19, 20]
 
 ch_names = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'O1', 'O2',
             'A1', 'A2', 'F7', 'F8', 'T3', 'T4', 'T5', 'T6', 'Fz', 'Cz', 'Pz', 'X3']
 print("Use EEG channels:")
 print([ch_names[i] for i in ch_picks])
+
+start_time_load_data = time.perf_counter()
 
 eeg_data_loader_instance = eeg_data_loader()
 eeg_data = eeg_data_loader_instance.load_eeg_from_mat(subject_data_path)
@@ -107,6 +95,9 @@ y = np.array(labels) - 1  # labels should range from 0-4 (?)
 
 num_classes = 5
 
+end_time_load_data = time.perf_counter()
+print(f"Time to load EEG-data: {end_time_load_data-start_time_load_data:.2f}s")
+
 ###############################################################################
 
 # apply butterworth bandpass filter
@@ -127,7 +118,11 @@ def butter_bandpass_filter(data, lowcut, highcut, sample_freq, order=3, axis=1):
   return y
 
 print("Bandpass filter EEG data (4-40Hz)")
-eeg_data = butter_bandpass_filter(eeg_data, 4.0, 40.0, sample_frequency, order=3, axis=1)
+start_time_bandpass = time.perf_counter()
+eeg_data = butter_bandpass_filter(eeg_data, 4.0, 40.0, sample_frequency, order=6, axis=1)
+
+end_time_bandpass = time.perf_counter()
+print(f"Time to apply bandpass filter: {end_time_bandpass-start_time_bandpass:.2f}s")
 
 ###############################################################################
 
@@ -179,6 +174,7 @@ y = np.array(list_of_fake_labels)
 # generate the "images" per channel for all trials - normal (5 classes)
 list_of_trial_data = []
 
+start_time_cwt = time.perf_counter()
 # CTW images
 for trial, label in zip(trials, labels):
   trial_data = []
@@ -191,6 +187,9 @@ for trial, label in zip(trials, labels):
 X = np.array(list_of_trial_data)
 print("X:", type(X), X.shape)
 # should be (num_trials, num_channels, num_f, num_t)
+
+end_time_cwt = time.perf_counter()
+print(f"Time to generate CWTs: {end_time_cwt-start_time_cwt:.2f}s")
 
 ###############################################################################
 
@@ -249,6 +248,8 @@ all_acc_valid = []
 
 # sum over all confusion matrices
 cumulative_cm = None
+
+start_time_train = time.perf_counter()
 
 for i in range(k):
   print("-"*80)
@@ -349,6 +350,8 @@ for i in range(k):
   print("Recall:", recall, "Mean:", np.array(recall).mean())
   print("F1 Score:", f_score, "Mean:", np.array(f_score).mean())
 
+end_time_train = time.perf_counter()
+print(f"Time to train models: {end_time_train-start_time_train:.2f}s")
 
 # only need to print this once
 model.summary()
