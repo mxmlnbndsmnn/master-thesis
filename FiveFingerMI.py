@@ -10,6 +10,7 @@ for one subject eeg data .mat file.
 
 import os
 import pathlib
+import time
 
 from scipy.io import loadmat
 import scipy.signal as signal
@@ -111,6 +112,17 @@ def butter_bandpass_filter(data, lowcut, highcut, sample_freq, order=5, axis=1):
   y = signal.sosfilt(sos, data, axis=axis)
   return y
 
+start_1 = time.perf_counter()
+eeg_data = butter_bandpass_filter(eeg_data, 4.0, 40.0, sample_frequency, order=3, axis=1)
+stop_1 = time.perf_counter()
+print(f"Time to 3rd order filter data: {stop_1-start_1:.2f}s")
+
+start_2 = time.perf_counter()
+eeg_data = butter_bandpass_filter(eeg_data, 4.0, 40.0, sample_frequency, order=6, axis=1)
+stop_2 = time.perf_counter()
+print(f"Time to 6th order filter data: {stop_2-start_2:.2f}s")
+
+exit()
 
 
 # plot raw eeg data
