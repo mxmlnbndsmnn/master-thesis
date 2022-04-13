@@ -31,13 +31,13 @@ if len(sys.argv) == 1:
 file_index = int(sys.argv[1])
 
 
-# exclude channels on the left: Fp1, F7, T3, T5 and O1
-ch_picks = [1, 2, 3, 4, 5, 6, 7, 9, 13, 15, 17, 18, 19, 20]
+# pick 9 channels closest to the motor cortex
+ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
 
 # run the same file twice for all subjects
 if file_index > 18:
-  # exclude channels on the right: Fp2, F8, T4, T6 and O2
-  ch_picks = [0, 2, 3, 4, 5, 6, 7, 8, 12, 14, 16, 18, 19, 20]
+  # pick outer channels, all except the above 9
+  ch_picks = [0, 1, 8, 9, 12, 13, 14, 15, 16, 17]
   file_index -= 19
 
 eeg_data_folder = "eeg-data"
@@ -388,6 +388,9 @@ for i, p in enumerate(precision):
   print(f"{i}: {p:.2f}")
 print("Mean recall per class:")
 for i, r in enumerate(recall):
+  print(f"{i}: {r:.2f}")
+print("Mean F1 score per class:")
+for i, r in enumerate(f_score):
   print(f"{i}: {r:.2f}")
 
 # use for 2 class problems
