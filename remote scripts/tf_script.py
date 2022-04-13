@@ -31,13 +31,13 @@ if len(sys.argv) == 1:
 file_index = int(sys.argv[1])
 
 
-# exclude Fp1 and Fp2
-ch_picks = [2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+# exclude channels on the left: Fp1, F7, T3, T5 and O1
+ch_picks = [1, 2, 3, 4, 5, 6, 7, 9, 13, 15, 17, 18, 19, 20]
 
 # run the same file twice for all subjects
 if file_index > 18:
-  # exclude T3 and T4
-  ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 16, 17, 18, 19, 20]
+  # exclude channels on the right: Fp2, F8, T4, T6 and O2
+  ch_picks = [0, 2, 3, 4, 5, 6, 7, 8, 12, 14, 16, 18, 19, 20]
   file_index -= 19
 
 eeg_data_folder = "eeg-data"
