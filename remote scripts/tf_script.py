@@ -31,13 +31,13 @@ if len(sys.argv) == 1:
 file_index = int(sys.argv[1])
 
 
-# pick 9 channels closest to the motor cortex
-ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
+# pick 8 channels with great spatial distribution
+ch_picks = [4, 5, 12, 13, 16, 17, 18, 20]
 
 # run the same file twice for all subjects
 if file_index > 18:
-  # pick outer channels, all except the above 9
-  ch_picks = [0, 1, 8, 9, 12, 13, 14, 15, 16, 17]
+  # pick 5 channels with great spatial distribution
+  ch_picks = [12, 13, 16, 17, 19]
   file_index -= 19
 
 eeg_data_folder = "eeg-data"
