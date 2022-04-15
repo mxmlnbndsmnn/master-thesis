@@ -36,40 +36,79 @@ eeg_data_folder = "eeg-data"
 # use the first file for train+validation and the second for testing
 # note that for some subjects more combinations are possible than listed here
 subject_data_files = []
-subject_data_files.append(["5F-SubjectA-160405-5St-SGLHand.mat",
-                           "5F-SubjectA-160408-5St-SGLHand-HFREQ.mat"])
-subject_data_files.append(["5F-SubjectA-160408-5St-SGLHand-HFREQ.mat",
-                          "5F-SubjectA-160405-5St-SGLHand.mat"])
-
 subject_data_files.append(["5F-SubjectB-151110-5St-SGLHand.mat",
+                           "5F-SubjectB-160311-5St-SGLHand-HFREQ.mat"])
+subject_data_files.append(["5F-SubjectB-160311-5St-SGLHand-HFREQ.mat",
+                           "5F-SubjectB-151110-5St-SGLHand.mat"])
+subject_data_files.append(["5F-SubjectB-151110-5St-SGLHand.mat",
+                           "5F-SubjectB-160316-5St-SGLHand.mat"])
+subject_data_files.append(["5F-SubjectB-160316-5St-SGLHand.mat",
+                           "5F-SubjectB-151110-5St-SGLHand.mat"])
+subject_data_files.append(["5F-SubjectB-160309-5St-SGLHand-HFREQ.mat",
+                           "5F-SubjectB-160311-5St-SGLHand-HFREQ.mat"])
+subject_data_files.append(["5F-SubjectB-160311-5St-SGLHand-HFREQ.mat",
                            "5F-SubjectB-160309-5St-SGLHand-HFREQ.mat"])
 subject_data_files.append(["5F-SubjectB-160309-5St-SGLHand-HFREQ.mat",
-                           "5F-SubjectB-151110-5St-SGLHand.mat"])
-
-subject_data_files.append(["5F-SubjectC-151204-5St-SGLHand.mat",
-                           "5F-SubjectC-160429-5St-SGLHand-HFREQ.mat"])
-subject_data_files.append(["5F-SubjectC-160429-5St-SGLHand-HFREQ.mat",
-                           "5F-SubjectC-151204-5St-SGLHand.mat"])
+                           "5F-SubjectB-160316-5St-SGLHand.mat"])
+subject_data_files.append(["5F-SubjectB-160316-5St-SGLHand.mat",
+                           "5F-SubjectB-160309-5St-SGLHand-HFREQ.mat"])
+subject_data_files.append(["5F-SubjectB-160311-5St-SGLHand-HFREQ.mat",
+                           "5F-SubjectB-160316-5St-SGLHand.mat"])
+subject_data_files.append(["5F-SubjectB-160316-5St-SGLHand.mat",
+                           "5F-SubjectB-160311-5St-SGLHand-HFREQ.mat"])
 
 subject_data_files.append(["5F-SubjectE-160321-5St-SGLHand-HFREQ.mat",
-                           "5F-SubjectE-160415-5St-SGLHand-HFREQ.mat"])
-subject_data_files.append(["5F-SubjectE-160415-5St-SGLHand-HFREQ.mat",
+                           "5F-SubjectE-160429-5St-SGLHand-HFREQ.mat"])
+subject_data_files.append(["5F-SubjectE-160429-5St-SGLHand-HFREQ.mat",
                            "5F-SubjectE-160321-5St-SGLHand-HFREQ.mat"])
+subject_data_files.append(["5F-SubjectE-160415-5St-SGLHand-HFREQ.mat",
+                           "5F-SubjectE-160429-5St-SGLHand-HFREQ.mat"])
+subject_data_files.append(["5F-SubjectE-160429-5St-SGLHand-HFREQ.mat",
+                           "5F-SubjectE-160415-5St-SGLHand-HFREQ.mat"])
 
 subject_data_files.append(["5F-SubjectF-151027-5St-SGLHand.mat",
-                           "5F-SubjectF-160209-5St-SGLHand.mat"])
-subject_data_files.append(["5F-SubjectF-160209-5St-SGLHand.mat",
+                           "5F-SubjectF-160210-5St-SGLHand-HFREQ.mat"])
+subject_data_files.append(["5F-SubjectF-160210-5St-SGLHand-HFREQ.mat",
                            "5F-SubjectF-151027-5St-SGLHand.mat"])
+subject_data_files.append(["5F-SubjectF-160209-5St-SGLHand.mat",
+                           "5F-SubjectF-160210-5St-SGLHand-HFREQ.mat"])
+subject_data_files.append(["5F-SubjectF-160210-5St-SGLHand-HFREQ.mat",
+                           "5F-SubjectF-160209-5St-SGLHand.mat"])
 
-subject_data_files.append(["5F-SubjectG-160413-5St-SGLHand-HFREQ.mat",
-                           "5F-SubjectG-160428-5St-SGLHand-HFREQ.mat"])
-subject_data_files.append(["5F-SubjectG-160428-5St-SGLHand-HFREQ.mat",
-                           "5F-SubjectG-160413-5St-SGLHand-HFREQ.mat"])
+# subject_data_files.append(["5F-SubjectA-160405-5St-SGLHand.mat",
+                           # "5F-SubjectA-160408-5St-SGLHand-HFREQ.mat"])
+# subject_data_files.append(["5F-SubjectA-160408-5St-SGLHand-HFREQ.mat",
+                          # "5F-SubjectA-160405-5St-SGLHand.mat"])
 
-subject_data_files.append(["5F-SubjectI-160719-5St-SGLHand-HFREQ.mat",
-                           "5F-SubjectI-160723-5St-SGLHand-HFREQ.mat"])
-subject_data_files.append(["5F-SubjectI-160723-5St-SGLHand-HFREQ.mat",
-                           "5F-SubjectI-160719-5St-SGLHand-HFREQ.mat"])
+# subject_data_files.append(["5F-SubjectB-151110-5St-SGLHand.mat",
+                           # "5F-SubjectB-160309-5St-SGLHand-HFREQ.mat"])
+# subject_data_files.append(["5F-SubjectB-160309-5St-SGLHand-HFREQ.mat",
+                           # "5F-SubjectB-151110-5St-SGLHand.mat"])
+
+# subject_data_files.append(["5F-SubjectC-151204-5St-SGLHand.mat",
+                           # "5F-SubjectC-160429-5St-SGLHand-HFREQ.mat"])
+# subject_data_files.append(["5F-SubjectC-160429-5St-SGLHand-HFREQ.mat",
+                           # "5F-SubjectC-151204-5St-SGLHand.mat"])
+
+# subject_data_files.append(["5F-SubjectE-160321-5St-SGLHand-HFREQ.mat",
+                           # "5F-SubjectE-160415-5St-SGLHand-HFREQ.mat"])
+# subject_data_files.append(["5F-SubjectE-160415-5St-SGLHand-HFREQ.mat",
+                           # "5F-SubjectE-160321-5St-SGLHand-HFREQ.mat"])
+
+# subject_data_files.append(["5F-SubjectF-151027-5St-SGLHand.mat",
+                           # "5F-SubjectF-160209-5St-SGLHand.mat"])
+# subject_data_files.append(["5F-SubjectF-160209-5St-SGLHand.mat",
+                           # "5F-SubjectF-151027-5St-SGLHand.mat"])
+
+# subject_data_files.append(["5F-SubjectG-160413-5St-SGLHand-HFREQ.mat",
+                           # "5F-SubjectG-160428-5St-SGLHand-HFREQ.mat"])
+# subject_data_files.append(["5F-SubjectG-160428-5St-SGLHand-HFREQ.mat",
+                           # "5F-SubjectG-160413-5St-SGLHand-HFREQ.mat"])
+
+# subject_data_files.append(["5F-SubjectI-160719-5St-SGLHand-HFREQ.mat",
+                           # "5F-SubjectI-160723-5St-SGLHand-HFREQ.mat"])
+# subject_data_files.append(["5F-SubjectI-160723-5St-SGLHand-HFREQ.mat",
+                           # "5F-SubjectI-160719-5St-SGLHand-HFREQ.mat"])
 
 # data used for training
 subject_data_file_1 = subject_data_files[run_index][0]
@@ -95,10 +134,10 @@ elif sample_frequency_1 == 1000:
   # downsample using every 5th data point to go from 1000Hz to 200Hz
   trials_1, labels_1 = eeg_data_loader_instance_1.get_trials_x_and_y_downsample(5)
   # use the downsampled frequency...
-  sample_frequency = 200
+  sample_frequency_1 = 200
   print("Downsample from 1000Hz to 200Hz.")
 else:
-  raise RuntimeError("Unexpected sample frequency:", sample_frequency)
+  raise RuntimeError("Unexpected sample frequency:", sample_frequency_1)
 
 y_1 = np.array(labels_1) - 1  # labels should range from 0-4 (?)
 
@@ -114,10 +153,10 @@ elif sample_frequency_2 == 1000:
   # downsample using every 5th data point to go from 1000Hz to 200Hz
   trials_2, labels_2 = eeg_data_loader_instance_2.get_trials_x_and_y_downsample(5)
   # use the downsampled frequency...
-  sample_frequency = 200
+  sample_frequency_2 = 200
   print("Downsample from 1000Hz to 200Hz.")
 else:
-  raise RuntimeError("Unexpected sample frequency:", sample_frequency)
+  raise RuntimeError("Unexpected sample frequency:", sample_frequency_2)
 
 y_2 = np.array(labels_2) - 1  # labels should range from 0-4 (?)
 
@@ -157,8 +196,8 @@ def butter_bandpass_filter(data, lowcut, highcut, sample_freq, order=3, axis=1):
 
 print("Bandpass filter EEG data (4-40Hz)")
 start_time_bandpass = time.perf_counter()
-eeg_data_1 = butter_bandpass_filter(eeg_data_1, 4.0, 40.0, sample_frequency, order=6, axis=1)
-eeg_data_2 = butter_bandpass_filter(eeg_data_2, 4.0, 40.0, sample_frequency, order=6, axis=1)
+eeg_data_1 = butter_bandpass_filter(eeg_data_1, 4.0, 40.0, sample_frequency_1, order=6, axis=1)
+eeg_data_2 = butter_bandpass_filter(eeg_data_2, 4.0, 40.0, sample_frequency_2, order=6, axis=1)
 
 end_time_bandpass = time.perf_counter()
 print(f"Time to apply bandpass filter: {end_time_bandpass-start_time_bandpass:.2f}s")
