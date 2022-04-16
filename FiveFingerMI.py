@@ -17,9 +17,10 @@ import scipy.signal as signal
 import numpy as np
 from numpy import savetxt, loadtxt
 import matplotlib.pyplot as plt
+from sklearn.decomposition import FastICA, PCA
 
 from eeg_data_loader import eeg_data_loader
-from create_eeg_image import create_stft_image_for_trial, plot_trial_stft
+from create_eeg_image import create_stft_image_for_trial, plot_trial_stft, create_ctw_for_channel
 
 from sys import exit
 
@@ -61,6 +62,36 @@ events = eeg_data_loader_instance.find_all_events()
 sample_frequency = eeg_data_loader_instance.sample_frequency
 num_samples = eeg_data_loader_instance.num_samples
 
+
+
+# compute ICA
+X = eeg_data[2000:8000,:]
+ica = FastICA(n_components=5)
+S_ = ica.fit_transform(X)  # Get the estimated sources
+A_ = ica.mixing_  # Get estimated mixing matrix
+
+# compute PCA
+pca = PCA(n_components=5)
+H = pca.fit_transform(X)  # estimate PCA sources
+
+plt.figure(figsize=(9, 6))
+
+models = [X, S_, H]
+names = ['Observations (mixed signal)',
+         # 'True Sources',
+         'ICA estimated sources',
+         'PCA estimated sources']
+colors = ['red', 'steelblue', 'orange', "green", "blue"] * 5
+
+for ii, (model, name) in enumerate(zip(models, names), 1):
+    plt.subplot(len(models), 1, ii)
+    plt.title(name)
+    for sig, color in zip(model.T, colors):
+        plt.plot(sig, color=color)
+
+plt.tight_layout()
+
+exit()
 
 """
 # plot raw eeg data
@@ -112,6 +143,8 @@ def butter_bandpass_filter(data, lowcut, highcut, sample_freq, order=5, axis=1):
   y = signal.sosfilt(sos, data, axis=axis)
   return y
 
+
+"""
 start_1 = time.perf_counter()
 eeg_data1 = butter_bandpass_filter(eeg_data, 4.0, 40.0, sample_frequency, order=3, axis=1)
 stop_1 = time.perf_counter()
@@ -123,6 +156,8 @@ stop_2 = time.perf_counter()
 print(f"Time to 6th order filter data: {stop_2-start_2:.2f}s")
 
 exit()
+"""
+
 
 
 # plot raw eeg data

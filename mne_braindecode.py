@@ -138,6 +138,7 @@ assert np.max(y_raw) <= 4
 
 # pick trials and labels to do a 1 vs 1 classification
 # only pick trials for two classes, discard the rest
+"""
 num_classes = 2
 X = list()
 y = list()
@@ -160,6 +161,7 @@ X = np.array(X)
 y = np.array(y)
 
 del X_raw, y_raw
+"""
 
 # exit()
 
@@ -201,7 +203,7 @@ if len(events) > 0 and False:
 
 # create the core mne data structure from scratch
 # https://mne.tools/dev/auto_tutorials/simulation/10_array_objs.html#tut-creating-data-structures
-if False:
+if True:
   # by creating an info object ...
   # ch_types = ['eeg'] * len(ch_names)
   ch_types = 'eeg'
