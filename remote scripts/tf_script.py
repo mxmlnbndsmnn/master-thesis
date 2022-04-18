@@ -402,8 +402,8 @@ print("Mean recall per class:")
 for i, r in enumerate(recall):
   print(f"{i}: {r:.2f}")
 print("Mean F1 score per class:")
-for i, r in enumerate(f_score):
-  print(f"{i}: {r:.2f}")
+for i, f1 in enumerate(f_score):
+  print(f"{i}: {f1:.2f}")
 
 # use for 2 class problems
 # print(f"first_class: {first_class}")
