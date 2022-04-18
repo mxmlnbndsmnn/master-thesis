@@ -13,6 +13,7 @@ Otherwise - if the models do not agree - the class with the higher
 import sys
 from os import path as os_path
 import numpy as np
+from numpy.random import default_rng
 from eeg_data_loader import eeg_data_loader
 from create_eeg_image import create_ctw_for_channel
 import tensorflow as tf
@@ -75,11 +76,10 @@ num_samples = eeg_data_loader_instance.num_samples
 ch_names = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'O1', 'O2',
             'A1', 'A2', 'F7', 'F8', 'T3', 'T4', 'T5', 'T6', 'Fz', 'Cz', 'Pz', 'X3']
 
-# channels closest to the primary motor cortex
-# F3, Fz, F4, C3, Cz, C4, P3, Pz, P4
-# ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
-ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-# print([ch_names[i] for i in ch_picks])
+# pick all channels except reference and Fp1, Fp2
+ch_picks = [2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+print("Use EEG channels:")
+print([ch_names[i] for i in ch_picks])
 
 # obtain trial data and labels for this subject
 if sample_frequency == 200:
@@ -108,29 +108,46 @@ for trial, label in zip(trials, labels):
     trial_data.append(cwt)
   list_of_trial_data.append(trial_data)
 
-X = np.array(list_of_trial_data)
-print("X:", type(X), X.shape)
+trials = np.array(list_of_trial_data)
+print("trials:", type(trials), trials.shape)
 # should be (num_trials, num_channels, num_f, num_t)
 
-# create 5 lists of labels for each of the 5 classes
-labels_binary = []
+# create an X and y for all 5 models
+# this allows to undersample trials of each "rest" class
+Xs = []
+ys = []
+# randomly select trials with a 25% chance
+rng = default_rng()
+debug_label_counter = []
 for target_class in range(5):
   print(f"Compare class {target_class} vs the rest")
   print("Trials in target class =", (labels==target_class).sum())
   print("Trials in other classes =", (labels!=target_class).sum())
   
-  list_of_fake_labels = []
+  Xs.append([])
+  ys.append([])
+  debug_label_counter.append([0, 0, 0, 0, 0])
   
   for trial, label in zip(trials, labels):
     fake_label = 0
+    chance = 1.0
     if label == target_class:
+      # pick all trials for the target class
+      # chance = 1.0
       fake_label = 0
     else:
+      # for the rest classes, only pick aprox every 4th
+      chance = 0.25
       fake_label = 1
     
-    list_of_fake_labels.append(fake_label)
-  
-  labels_binary.append(np.array(list_of_fake_labels))
+    if chance == 1.0 or chance > rng.random():
+      Xs[target_class].append(trial)
+      ys[target_class].append(fake_label)
+      debug_label_counter[target_class][label] += 1
+
+# they should be roughly even in numbers (except for each target class)
+print("Debug: #labels per model per class:")
+print(debug_label_counter)
 
 ###############################################################################
 
@@ -161,12 +178,6 @@ def calculate_cm_scores(cm):
 
 ###############################################################################
 
-# some layers (conv, max pool) assume the input to have the channels as the
-# last dimension (channels_last), e.g. (batch, dim1, dim2, channel)
-X = tf.constant(X)
-X = tf.transpose(X, perm=[0,2,3,1])
-input_shape = X[0].shape
-
 # create one model per class
 models = []
 learn_rate = 0.001
@@ -174,14 +185,24 @@ print(f"Learn rate: {learn_rate}")
 num_epochs = 80
 print(f"Training for up to {num_epochs} epochs.")
 
-num_trials = X.shape[0]
-train_size = int(0.6 * num_trials)
-valid_size = int(0.2 * num_trials)
-test_size = int(0.2 * num_trials)
-
 for target_class in range(5):
-  y = labels_binary[target_class]
+  
+  # some layers (conv, max pool) assume the input to have the channels as the
+  # last dimension (channels_last), e.g. (batch, dim1, dim2, channel)
+  X = tf.constant(Xs[target_class])
+  X = tf.transpose(X, perm=[0,2,3,1])
+  input_shape = X[0].shape
+
+  y = ys[target_class]
   dataset = tf.data.Dataset.from_tensor_slices((tf.constant(X), tf.constant(y)))
+  
+  # we do not feed all trials to each model, thus each dataset is smaller
+  # than the total number of trials!
+  num_trials = len(dataset)
+  train_size = int(0.6 * num_trials)
+  valid_size = int(0.2 * num_trials)
+  # test_size = int(0.2 * num_trials)
+  test_size = num_trials - (train_size + valid_size)
   
   train_ds = dataset.take(train_size)
   valid_ds = dataset.skip(train_size).take(valid_size)
@@ -213,10 +234,10 @@ for target_class in range(5):
   # compile the model
   model.compile(optimizer=optimizer,
                 loss=tf.keras.losses.SparseCategoricalCrossentropy(),
-                metrics=["mse", "accuracy"])
+                metrics=["accuracy"])
   
   # early stopping
-  es_callback = tf.keras.callbacks.EarlyStopping(monitor="mse",
+  es_callback = tf.keras.callbacks.EarlyStopping(monitor="accuracy",
                                                  patience=4,
                                                  restore_best_weights=True)
   
@@ -326,4 +347,6 @@ for i, p in enumerate(precision):
 print("Mean recall per class:")
 for i, r in enumerate(recall):
   print(f"{i}: {r:.2f}")
-
+print("Mean F1 score per class:")
+for i, f1 in enumerate(f_score):
+  print(f"{i}: {f1:.2f}")
