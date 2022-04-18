@@ -25,28 +25,14 @@ file_index = 0
 # if using an array job: assume the first argument (after the file path) to
 # represent the file index in the list of all eeg data files
 if len(sys.argv) == 1:
-  print("Warning: Missing parameter [run_index]")
+  print("Warning: Missing parameter [file_index]")
   sys.exit()
 
-run_index = int(sys.argv[1])
+file_index = int(sys.argv[1])
 
-
-# run the same file 3 times for all 13 HFREQ subjects
-# 0-12 = use 1000Hz
-# 13-25 = downsample to 500Hz
-# 26-38 = downsample to 200Hz
-target_frequency = 1000
-file_index = run_index
-if run_index > 25:
-  target_frequency = 200
-  file_index -= 26
-elif run_index > 12:
-  target_frequency = 500
-  file_index -= 13
 
 eeg_data_folder = "eeg-data"
 # all files
-"""
 subject_data_files = ['5F-SubjectA-160405-5St-SGLHand.mat',  # 0
                       '5F-SubjectA-160408-5St-SGLHand-HFREQ.mat',
                       '5F-SubjectB-151110-5St-SGLHand.mat',
@@ -66,8 +52,8 @@ subject_data_files = ['5F-SubjectA-160405-5St-SGLHand.mat',  # 0
                       '5F-SubjectH-160804-5St-SGLHand-HFREQ.mat',
                       '5F-SubjectI-160719-5St-SGLHand-HFREQ.mat',
                       '5F-SubjectI-160723-5St-SGLHand-HFREQ.mat']  # 18
-"""
 
+"""
 # 1000Hz files
 subject_data_files = ['5F-SubjectA-160408-5St-SGLHand-HFREQ.mat',  # 0
                       '5F-SubjectB-160309-5St-SGLHand-HFREQ.mat',
@@ -82,6 +68,7 @@ subject_data_files = ['5F-SubjectA-160408-5St-SGLHand-HFREQ.mat',  # 0
                       '5F-SubjectH-160804-5St-SGLHand-HFREQ.mat',  # 10
                       '5F-SubjectI-160719-5St-SGLHand-HFREQ.mat',
                       '5F-SubjectI-160723-5St-SGLHand-HFREQ.mat']
+"""
 
 subject_data_file = subject_data_files[file_index]
 subject_data_path = os_path.join(eeg_data_folder, subject_data_file)
@@ -114,28 +101,15 @@ eeg_data = eeg_data_loader_instance.load_eeg_from_mat(subject_data_path)
 sample_frequency = eeg_data_loader_instance.sample_frequency
 num_samples = eeg_data_loader_instance.num_samples
 
-"""
-if sample_frequency == 200:
-  trials, labels = eeg_data_loader_instance.get_trials_x_and_y()
-elif sample_frequency == 1000:
-  # downsample using every 5th data point to go from 1000Hz to 200Hz
-  trials, labels = eeg_data_loader_instance.get_trials_x_and_y_downsample(5)
-  # use the downsampled frequency...
-  sample_frequency = 200
-  print("Downsample from 1000Hz to 200Hz.")
-else:
-  raise RuntimeError("Unexpected sample frequency:", sample_frequency)
-"""
+target_frequency = 100
 
-print(f"Target frequency: {target_frequency}")
-if target_frequency == 1000:
-  trials, labels = eeg_data_loader_instance.get_trials_x_and_y()
-elif target_frequency == 500:
-  trials, labels = eeg_data_loader_instance.get_trials_x_and_y_downsample(2)
-elif target_frequency == 200:
+print(f"Target frequency: {target_frequency} Hz")
+if sample_frequency == 1000:
+  trials, labels = eeg_data_loader_instance.get_trials_x_and_y_downsample(10)
+elif sample_frequency == 200:
   trials, labels = eeg_data_loader_instance.get_trials_x_and_y_downsample(5)
 else:
-  raise RuntimeError("Unexpected target frequency:", target_frequency)
+  raise RuntimeError("Unexpected target frequency:", sample_frequency)
 
 sample_frequency = target_frequency
 
