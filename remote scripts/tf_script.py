@@ -214,7 +214,7 @@ for trial, label in zip(trials, labels):
   ica_sources = ica.fit_transform(trial)  # get the estimated sources
   sources_t = ica_sources.T
   for i, source in enumerate(sources_t):
-    if kurtosis(source) > 8:
+    if kurtosis(source) > 16:
       sources_t[i][:] *= 0.1
       num_bad_components += 1
   # after removing components that are considered "bad", reconstruct the mixed data
