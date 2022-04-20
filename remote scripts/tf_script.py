@@ -3,6 +3,8 @@ from os import path as os_path
 import time
 import numpy as np
 import scipy.signal as signal
+from scipy.stats import kurtosis
+from sklearn.decomposition import FastICA
 # import matplotlib.pyplot as plt
 from eeg_data_loader import eeg_data_loader
 from create_eeg_image import create_ctw_for_channel
@@ -118,8 +120,14 @@ y = np.array(labels) - 1  # labels should range from 0-4 (?)
 
 num_classes = 5
 
+print("Discard EEG channels...")
+print(eeg_data.shape)
+eeg_data = np.array([eeg_data.T[i] for i in ch_picks]).T
+print(eeg_data.shape)
+
 end_time_load_data = time.perf_counter()
 print(f"Time to load EEG-data: {end_time_load_data-start_time_load_data:.2f}s")
+
 
 ###############################################################################
 
@@ -199,10 +207,23 @@ list_of_trial_data = []
 
 start_time_cwt = time.perf_counter()
 # CTW images
+num_bad_components = 0
 for trial, label in zip(trials, labels):
+  
+  ica = FastICA(n_components=10, random_state=42)
+  ica_sources = ica.fit_transform(trial)  # get the estimated sources
+  sources_t = ica_sources.T
+  for i, source in enumerate(sources_t):
+    if kurtosis(source) > 2:
+      sources_t[i][:] = 0
+      num_bad_components += 1
+  # after removing components that are considered "bad", reconstruct the mixed data
+  trial = ica.inverse_transform(sources_t.T)
+  
   trial_data = []
-  for ch_index in ch_picks:
-    ch = trial[ch_index]
+  for ch in trial:
+  # for ch_index in ch_picks:
+    # ch = trial[ch_index]
     cwt = create_ctw_for_channel(ch, widths_max=40)
     trial_data.append(cwt)
   list_of_trial_data.append(trial_data)
@@ -213,6 +234,8 @@ print("X:", type(X), X.shape)
 
 end_time_cwt = time.perf_counter()
 print(f"Time to generate CWTs: {end_time_cwt-start_time_cwt:.2f}s")
+
+print(f"ICA detected {num_bad_components} components considered bad.")
 
 ###############################################################################
 

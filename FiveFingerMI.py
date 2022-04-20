@@ -14,6 +14,7 @@ import time
 
 from scipy.io import loadmat
 import scipy.signal as signal
+from scipy.stats import kurtosis
 import numpy as np
 from numpy import savetxt, loadtxt
 import matplotlib.pyplot as plt
@@ -55,6 +56,9 @@ ch_names = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'O1', 'O2',
 ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
 # print([ch_names[i] for i in ch_picks])
 
+print(eeg_data.shape)
+eeg_data = np.array([eeg_data.T[i] for i in ch_picks]).T
+print(eeg_data.shape)
 
 # each item in this list is a dict containing start + stop index and event type
 events = eeg_data_loader_instance.find_all_events()
@@ -62,25 +66,77 @@ events = eeg_data_loader_instance.find_all_events()
 sample_frequency = eeg_data_loader_instance.sample_frequency
 num_samples = eeg_data_loader_instance.num_samples
 
+###############################################################################
 
+# apply butterworth bandpass filter
+
+# second-order sections
+def butter_bandpass_sos(lowcut, highcut, sample_freq, order=3):
+  nyq = sample_freq * 0.5
+  low = lowcut / nyq
+  high = highcut / nyq
+  sos = signal.butter(order, [low, high], analog=False, btype="bandpass", output="sos")
+  return sos
+
+
+# default axis is -1, but here we want to filter data for each channel
+def butter_bandpass_filter(data, lowcut, highcut, sample_freq, order=3, axis=1):
+  sos = butter_bandpass_sos(lowcut, highcut, sample_freq, order=order)
+  y = signal.sosfilt(sos, data, axis=axis)
+  return y
+
+eeg_data = butter_bandpass_filter(eeg_data, 4.0, 40.0, sample_frequency, order=6, axis=1)
+
+###############################################################################
+
+event = events[734]
+start_frame = event["start"]
+end_frame = event["stop"]
 
 # compute ICA
-X = eeg_data[2000:8000,:]
-ica = FastICA(n_components=5)
+X = eeg_data[start_frame:end_frame,:]
+# X = eeg_data[start_frame:end_frame,:-1]  # remove the last channel (X3)
+# not needed when picking channels
+ica = FastICA(n_components=5, random_state=42)
 S_ = ica.fit_transform(X)  # Get the estimated sources
 A_ = ica.mixing_  # Get estimated mixing matrix
 
+# plot raw data individually
+plt.figure(figsize=(10, 10))
+for i in range(len(ch_picks)):
+  plt.subplot(5,5,i+1)
+  plt.title(ch_names[i])
+  plt.plot(X.T[i])
+
 # compute PCA
-pca = PCA(n_components=5)
-H = pca.fit_transform(X)  # estimate PCA sources
+# pca = PCA(n_components=5)
+# H = pca.fit_transform(X)  # estimate PCA sources
+
+sources = S_.T
+
+for s in sources:
+  print(f"Variance: {s.var():.4f}")
+  print(f"Kurtosis: {kurtosis(s):.2f}")
+
+plt.figure(figsize=(10,2))
+for i in range(5):
+  plt.subplot(1,5,i+1)
+  plt.plot(sources[i])
+
+
+# sources[3][:] = 0  # remove components manually
+sources[4][:] = 0
+
+restored = ica.inverse_transform(sources.T)
 
 plt.figure(figsize=(9, 6))
 
-models = [X, S_, H]
+models = [X, S_, restored]
 names = ['Observations (mixed signal)',
          # 'True Sources',
          'ICA estimated sources',
-         'PCA estimated sources']
+         # 'PCA estimated sources',
+         "ICA-restored signal"]
 colors = ['red', 'steelblue', 'orange', "green", "blue"] * 5
 
 for ii, (model, name) in enumerate(zip(models, names), 1):
@@ -92,6 +148,8 @@ for ii, (model, name) in enumerate(zip(models, names), 1):
 plt.tight_layout()
 
 exit()
+
+###############################################################################
 
 """
 # plot raw eeg data
@@ -126,22 +184,6 @@ if len(events) > 0:
     for ax in axs:
         ax.label_outer()
 """
-
-
-# second-order sections
-def butter_bandpass_sos(lowcut, highcut, sample_freq, order=5):
-  nyq = sample_freq * 0.5
-  low = lowcut / nyq
-  high = highcut / nyq
-  sos = signal.butter(order, [low, high], analog=False, btype="bandpass", output="sos")
-  return sos
-
-
-# default axis is -1, but here we want to filter data for each channel
-def butter_bandpass_filter(data, lowcut, highcut, sample_freq, order=5, axis=1):
-  sos = butter_bandpass_sos(lowcut, highcut, sample_freq, order=order)
-  y = signal.sosfilt(sos, data, axis=axis)
-  return y
 
 
 """
