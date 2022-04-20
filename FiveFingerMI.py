@@ -28,7 +28,8 @@ from sys import exit
 
 eeg_data_folder = "A large MI EEG dataset for EEG BCI"
 
-subject_data_file = "5F-SubjectA-160405-5St-SGLHand.mat"
+# subject_data_file = "5F-SubjectA-160405-5St-SGLHand.mat"
+subject_data_file = "5F-SubjectA-160408-5St-SGLHand-HFREQ"
 # subject_data_file = "5F-SubjectB-151110-5St-SGLHand.mat"
 # subject_data_file = "5F-SubjectC-151204-5St-SGLHand.mat"
 # subject_data_file = "5F-SubjectF-151027-5St-SGLHand.mat"
@@ -95,7 +96,10 @@ eeg_data = butter_bandpass_filter(eeg_data, 4.0, 40.0, sample_frequency, order=6
 
 varis = []
 kurts = []
-for event in events:
+for i, event in enumerate(events):
+  if i > 20:
+    break
+  
   # event = events[734]
   start_frame = event["start"]
   end_frame = event["stop"]
@@ -109,11 +113,11 @@ for event in events:
   A_ = ica.mixing_  # Get estimated mixing matrix
   
   # plot raw data individually
-  # plt.figure(figsize=(10, 10))
-  # for i in range(len(ch_picks)):
-  #   plt.subplot(5,5,i+1)
-  #   plt.title(ch_names[i])
-  #   plt.plot(X.T[i])
+  plt.figure(figsize=(10, 10))
+  for i in range(len(ch_picks)):
+    plt.subplot(5,5,i+1)
+    plt.title(ch_names[i])
+    plt.plot(X.T[i])
   
   # compute PCA
   # pca = PCA(n_components=5)
@@ -127,39 +131,37 @@ for event in events:
     varis.append(s.var())
     kurts.append(kurtosis(s))
 
+  plt.figure(figsize=(10,2))
+  for i in range(5):
+    plt.subplot(1,5,i+1)
+    plt.plot(sources[i])
+  
+  
+  # sources[3][:] = 0  # remove components manually
+  # sources[4][:] = 0
+  
+  # restored = ica.inverse_transform(sources.T)
+  
+  plt.figure(figsize=(9, 6))
+  
+  models = [X, S_]
+  names = ['Observations (mixed signal)',
+           # 'True Sources',
+           'ICA estimated sources',
+           # 'PCA estimated sources',
+           "ICA-restored signal"]
+  colors = ['red', 'steelblue', 'orange', "green", "blue"] * 5
+  
+  for ii, (model, name) in enumerate(zip(models, names), 1):
+      plt.subplot(len(models), 1, ii)
+      plt.title(name)
+      for sig, color in zip(model.T, colors):
+          plt.plot(sig, color=color)
+  
+  plt.tight_layout()
+
 varis = np.array(varis)
 kurts = np.array(kurts)
-
-exit()
-
-plt.figure(figsize=(10,2))
-for i in range(5):
-  plt.subplot(1,5,i+1)
-  plt.plot(sources[i])
-
-
-# sources[3][:] = 0  # remove components manually
-sources[4][:] = 0
-
-restored = ica.inverse_transform(sources.T)
-
-plt.figure(figsize=(9, 6))
-
-models = [X, S_, restored]
-names = ['Observations (mixed signal)',
-         # 'True Sources',
-         'ICA estimated sources',
-         # 'PCA estimated sources',
-         "ICA-restored signal"]
-colors = ['red', 'steelblue', 'orange', "green", "blue"] * 5
-
-for ii, (model, name) in enumerate(zip(models, names), 1):
-    plt.subplot(len(models), 1, ii)
-    plt.title(name)
-    for sig, color in zip(model.T, colors):
-        plt.plot(sig, color=color)
-
-plt.tight_layout()
 
 exit()
 

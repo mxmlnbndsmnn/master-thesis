@@ -210,12 +210,12 @@ start_time_cwt = time.perf_counter()
 num_bad_components = 0
 for trial, label in zip(trials, labels):
   
-  ica = FastICA(n_components=8, random_state=42)
+  ica = FastICA(n_components=6, random_state=42)
   ica_sources = ica.fit_transform(trial)  # get the estimated sources
   sources_t = ica_sources.T
   for i, source in enumerate(sources_t):
     if kurtosis(source) > 8:
-      sources_t[i][:] = 0
+      sources_t[i][:] *= 0.1
       num_bad_components += 1
   # after removing components that are considered "bad", reconstruct the mixed data
   trial = ica.inverse_transform(sources_t.T)
