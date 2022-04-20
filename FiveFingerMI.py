@@ -28,9 +28,10 @@ from sys import exit
 
 eeg_data_folder = "A large MI EEG dataset for EEG BCI"
 
+subject_data_file = "5F-SubjectA-160405-5St-SGLHand.mat"
 # subject_data_file = "5F-SubjectB-151110-5St-SGLHand.mat"
 # subject_data_file = "5F-SubjectC-151204-5St-SGLHand.mat"
-subject_data_file = "5F-SubjectF-151027-5St-SGLHand.mat"
+# subject_data_file = "5F-SubjectF-151027-5St-SGLHand.mat"
 # subject_data_file = "5F-SubjectF-160210-5St-SGLHand-HFREQ.mat"
 
 # place where the STFT images should be stored
@@ -53,7 +54,10 @@ ch_names = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'O1', 'O2',
 
 # channels closest to the primary motor cortex
 # F3, Fz, F4, C3, Cz, C4, P3, Pz, P4
-ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
+# ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
+
+# pick all channels except reference and Fp1, Fp2
+ch_picks = [2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20]
 # print([ch_names[i] for i in ch_picks])
 
 print(eeg_data.shape)
@@ -89,34 +93,44 @@ eeg_data = butter_bandpass_filter(eeg_data, 4.0, 40.0, sample_frequency, order=6
 
 ###############################################################################
 
-event = events[734]
-start_frame = event["start"]
-end_frame = event["stop"]
+varis = []
+kurts = []
+for event in events:
+  # event = events[734]
+  start_frame = event["start"]
+  end_frame = event["stop"]
+  
+  # compute ICA
+  X = eeg_data[start_frame:end_frame,:]
+  # X = eeg_data[start_frame:end_frame,:-1]  # remove the last channel (X3)
+  # not needed when picking channels
+  ica = FastICA(n_components=10, random_state=42)
+  S_ = ica.fit_transform(X)  # Get the estimated sources
+  A_ = ica.mixing_  # Get estimated mixing matrix
+  
+  # plot raw data individually
+  # plt.figure(figsize=(10, 10))
+  # for i in range(len(ch_picks)):
+  #   plt.subplot(5,5,i+1)
+  #   plt.title(ch_names[i])
+  #   plt.plot(X.T[i])
+  
+  # compute PCA
+  # pca = PCA(n_components=5)
+  # H = pca.fit_transform(X)  # estimate PCA sources
+  
+  sources = S_.T
+  
+  for s in sources:
+    # print(f"Variance: {s.var():.4f}")
+    # print(f"Kurtosis: {kurtosis(s):.2f}")
+    varis.append(s.var())
+    kurts.append(kurtosis(s))
 
-# compute ICA
-X = eeg_data[start_frame:end_frame,:]
-# X = eeg_data[start_frame:end_frame,:-1]  # remove the last channel (X3)
-# not needed when picking channels
-ica = FastICA(n_components=5, random_state=42)
-S_ = ica.fit_transform(X)  # Get the estimated sources
-A_ = ica.mixing_  # Get estimated mixing matrix
+varis = np.array(varis)
+kurts = np.array(kurts)
 
-# plot raw data individually
-plt.figure(figsize=(10, 10))
-for i in range(len(ch_picks)):
-  plt.subplot(5,5,i+1)
-  plt.title(ch_names[i])
-  plt.plot(X.T[i])
-
-# compute PCA
-# pca = PCA(n_components=5)
-# H = pca.fit_transform(X)  # estimate PCA sources
-
-sources = S_.T
-
-for s in sources:
-  print(f"Variance: {s.var():.4f}")
-  print(f"Kurtosis: {kurtosis(s):.2f}")
+exit()
 
 plt.figure(figsize=(10,2))
 for i in range(5):
