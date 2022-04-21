@@ -81,6 +81,7 @@ class eeg_data_loader:
   
   # cut trials from the full eeg data
   # return a list of trial data and a list of labels
+  """
   def get_trials_x_and_y(self, duration=1., prefix_time=0.2, suffix_time=0.2):
     # reshape eeg data -> n_channels x n_times
     transposed_eeg_data = self.eeg_data.transpose()
@@ -115,11 +116,13 @@ class eeg_data_loader:
       y.append(event['event'])
     
     return X, y
+  """
   
   # cut trials from the full eeg data
   # return a list of trial data and a list of labels
   # plus, downsample to only use every Nth data point
   # e.g. 1000Hz -> 250Hz with step = 4
+  """
   def get_trials_x_and_y_downsample(self, step, duration=1., prefix_time=0.2, suffix_time=0.2):
     # reshape eeg data -> n_channels x n_times
     transposed_eeg_data = self.eeg_data.transpose()
@@ -154,4 +157,5 @@ class eeg_data_loader:
       y.append(event['event'])
     
     return X, y
+  """
 

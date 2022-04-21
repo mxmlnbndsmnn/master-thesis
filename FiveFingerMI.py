@@ -28,8 +28,8 @@ from sys import exit
 
 eeg_data_folder = "A large MI EEG dataset for EEG BCI"
 
-# subject_data_file = "5F-SubjectA-160405-5St-SGLHand.mat"
-subject_data_file = "5F-SubjectA-160408-5St-SGLHand-HFREQ"
+subject_data_file = "5F-SubjectA-160405-5St-SGLHand.mat"
+# subject_data_file = "5F-SubjectA-160408-5St-SGLHand-HFREQ"
 # subject_data_file = "5F-SubjectB-151110-5St-SGLHand.mat"
 # subject_data_file = "5F-SubjectC-151204-5St-SGLHand.mat"
 # subject_data_file = "5F-SubjectF-151027-5St-SGLHand.mat"

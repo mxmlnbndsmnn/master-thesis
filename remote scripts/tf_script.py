@@ -77,6 +77,68 @@ subject_data_path = os_path.join(eeg_data_folder, subject_data_file)
 
 print(f"Load subject data from path: {subject_data_path}")
 
+start_time_load_data = time.perf_counter()
+
+eeg_data_loader_instance = eeg_data_loader()
+eeg_data = eeg_data_loader_instance.load_eeg_from_mat(subject_data_path)
+sample_frequency = eeg_data_loader_instance.sample_frequency
+num_samples = eeg_data_loader_instance.num_samples
+events = eeg_data_loader_instance.find_all_events()
+
+num_classes = 5
+
+# TODO: channels aren't really discarded, because the trial data
+# has already been extracted at this point
+# print("Discard EEG channels...")
+# print(eeg_data.shape)
+# eeg_data = np.array([eeg_data.T[i] for i in ch_picks]).T
+# print(eeg_data.shape)
+
+###############################################################################
+
+def get_trials_x_and_y(eeg_data, events, sfreq, duration=1., prefix_time=0.2,
+                       suffix_time=0.2, downsample_step=1, ch_picks=None):
+  # reshape eeg data -> n_channels x n_times
+  transposed_eeg_data = eeg_data.transpose()
+  X = list()
+  y = list()
+  
+  # trial duration is actually variable, but cannot be determined precisely anyway
+  trial_frames = int(duration * sfreq)
+  
+  # (optional) start a bit earlier + extend
+  prefix_frames = int(sfreq * prefix_time)
+  affix_frames = int(sfreq * suffix_time)
+  
+  for event in events:
+    start_i = event['start'] - prefix_frames
+    
+    # no trial data before time 0 (should be given implicit, but who knows)
+    if start_i < 0:
+      print("get_trials_x_and_y: skip trial (start_i < 0)")
+      continue
+    # assert start_i >= 0
+    
+    # stop_i = event['stop']
+    stop_i = start_i + trial_frames + affix_frames
+    
+    # for ch_index in ch_picks:
+      # transposed_eeg_data[ch_index][start_i:stop_i:downsample_step]
+    # this is equal to:
+    # for all picked channels, select all frames (with downsample step) from start to stop
+    trial = np.array([transposed_eeg_data[ch_index][start_i:stop_i:downsample_step] for ch_index in ch_picks])
+    
+    # old:
+    # trial = np.array([[ch[frame] for frame in range(start_i, stop_i, downsample_step)] for ch in transposed_eeg_data])
+    
+    X.append(trial)
+    
+    # event type (1-5)
+    y.append(event['event'])
+  
+  return X, y
+
+
 # pick 9 channels closest to the motor cortex
 # ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
 # pick all channels (except reference)
@@ -96,38 +158,25 @@ ch_picks = [2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20]
 print("Use EEG channels:")
 print([ch_names[i] for i in ch_picks])
 
-start_time_load_data = time.perf_counter()
-
-eeg_data_loader_instance = eeg_data_loader()
-eeg_data = eeg_data_loader_instance.load_eeg_from_mat(subject_data_path)
-sample_frequency = eeg_data_loader_instance.sample_frequency
-num_samples = eeg_data_loader_instance.num_samples
-
-target_frequency = 100
-
-print(f"Target frequency: {target_frequency} Hz")
+downsample_step = 1
 if sample_frequency == 1000:
-  trials, labels = eeg_data_loader_instance.get_trials_x_and_y_downsample(10)
+  downsample_step = 5
 elif sample_frequency == 200:
-  trials, labels = eeg_data_loader_instance.get_trials_x_and_y_downsample(5)
+  downsample_step = 1
 else:
   raise RuntimeError("Unexpected target frequency:", sample_frequency)
 
-sample_frequency = target_frequency
+trials, labels = get_trials_x_and_y(eeg_data, events, sample_frequency,
+                                    downsample_step=downsample_step, ch_picks=ch_picks)
 
 # X_raw = np.array(trials)  # use with "fake" labels (for 2 class problems)
 y = np.array(labels) - 1  # labels should range from 0-4 (?)
 
-num_classes = 5
-
-print("Discard EEG channels...")
-print(eeg_data.shape)
-eeg_data = np.array([eeg_data.T[i] for i in ch_picks]).T
-print(eeg_data.shape)
+print("trial shape:", type(trials[0]), trials[0].shape)  # trials is a simple list
+print("y:", type(y), y.shape)
 
 end_time_load_data = time.perf_counter()
 print(f"Time to load EEG-data: {end_time_load_data-start_time_load_data:.2f}s")
-
 
 ###############################################################################
 
@@ -150,6 +199,7 @@ def butter_bandpass_filter(data, lowcut, highcut, sample_freq, order=3, axis=1):
 
 print("Bandpass filter EEG data (4-40Hz)")
 start_time_bandpass = time.perf_counter()
+# TODO same problem as above: eeg_data is modified but not used (trials are though)
 eeg_data = butter_bandpass_filter(eeg_data, 4.0, 40.0, sample_frequency, order=6, axis=1)
 
 end_time_bandpass = time.perf_counter()
@@ -211,6 +261,7 @@ num_bad_components = 0
 num_bad_trials = 0
 for trial, label in zip(trials, labels):
   
+  """
   ica = FastICA(n_components=6, random_state=42)
   ica_sources = ica.fit_transform(trial)  # get the estimated sources
   sources_t = ica_sources.T
@@ -224,6 +275,7 @@ for trial, label in zip(trials, labels):
         is_bad_trial = True
   # after removing components that are considered "bad", reconstruct the mixed data
   trial = ica.inverse_transform(sources_t.T)
+  """
   
   trial_data = []
   for ch in trial:
@@ -235,7 +287,7 @@ for trial, label in zip(trials, labels):
 
 X = np.array(list_of_trial_data)
 print("X:", type(X), X.shape)
-# should be (num_trials, num_channels, num_f, num_t)
+# should be (num_trials, num_channels, num_f, num_t) (this was for STFT images...)
 
 end_time_cwt = time.perf_counter()
 print(f"Time to generate CWTs: {end_time_cwt-start_time_cwt:.2f}s")
