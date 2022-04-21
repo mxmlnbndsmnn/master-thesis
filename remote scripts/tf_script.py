@@ -87,13 +87,6 @@ events = eeg_data_loader_instance.find_all_events()
 
 num_classes = 5
 
-# TODO: channels aren't really discarded, because the trial data
-# has already been extracted at this point
-# print("Discard EEG channels...")
-# print(eeg_data.shape)
-# eeg_data = np.array([eeg_data.T[i] for i in ch_picks]).T
-# print(eeg_data.shape)
-
 ###############################################################################
 
 def get_trials_x_and_y(eeg_data, events, sfreq, duration=1., prefix_time=0.2,
@@ -127,9 +120,6 @@ def get_trials_x_and_y(eeg_data, events, sfreq, duration=1., prefix_time=0.2,
     # this is equal to:
     # for all picked channels, select all frames (with downsample step) from start to stop
     trial = np.array([transposed_eeg_data[ch_index][start_i:stop_i:downsample_step] for ch_index in ch_picks])
-    
-    # old:
-    # trial = np.array([[ch[frame] for frame in range(start_i, stop_i, downsample_step)] for ch in transposed_eeg_data])
     
     X.append(trial)
     
@@ -170,10 +160,10 @@ trials, labels = get_trials_x_and_y(eeg_data, events, sample_frequency,
                                     downsample_step=downsample_step, ch_picks=ch_picks)
 
 # X_raw = np.array(trials)  # use with "fake" labels (for 2 class problems)
-y = np.array(labels) - 1  # labels should range from 0-4 (?)
+# y = np.array(labels) - 1  # labels should range from 0-4 (?)
 
 print("trial shape:", type(trials[0]), trials[0].shape)  # trials is a simple list
-print("y:", type(y), y.shape)
+# print("y:", type(y), y.shape)
 
 end_time_load_data = time.perf_counter()
 print(f"Time to load EEG-data: {end_time_load_data-start_time_load_data:.2f}s")
@@ -199,8 +189,9 @@ def butter_bandpass_filter(data, lowcut, highcut, sample_freq, order=3, axis=1):
 
 print("Bandpass filter EEG data (4-40Hz)")
 start_time_bandpass = time.perf_counter()
-# TODO same problem as above: eeg_data is modified but not used (trials are though)
 eeg_data = butter_bandpass_filter(eeg_data, 4.0, 40.0, sample_frequency, order=6, axis=1)
+
+# TODO: apply bandpass filter before cutting trials from the eeg_data
 
 end_time_bandpass = time.perf_counter()
 print(f"Time to apply bandpass filter: {end_time_bandpass-start_time_bandpass:.2f}s")
@@ -254,28 +245,37 @@ y = np.array(list_of_fake_labels)
 
 # generate the "images" per channel for all trials - normal (5 classes)
 list_of_trial_data = []
+list_of_labels = []
 
 start_time_cwt = time.perf_counter()
 # CTW images
 num_bad_components = 0
 num_bad_trials = 0
+num_removed_trials = 0
 for trial, label in zip(trials, labels):
   
-  """
   ica = FastICA(n_components=6, random_state=42)
   ica_sources = ica.fit_transform(trial)  # get the estimated sources
   sources_t = ica_sources.T
-  is_bad_trial = False
+  bad_components_per_trial = 0
   for i, source in enumerate(sources_t):
-    if kurtosis(source) > 16:
-      # sources_t[i][:] *= 0.1
+    if kurtosis(source) > 8:
+      sources_t[i][:] = 0
       num_bad_components += 1
-      if not is_bad_trial:
-        num_bad_trials += 1
-        is_bad_trial = True
+      bad_components_per_trial += 1
+  
+  # allow one "bad" component per trial (that is removed by ICA repair anyway)
+  if bad_components_per_trial > 0 :
+    num_bad_trials += 1
+  
+  # skip this trial entirely if more than one "bad" component
+  if bad_components_per_trial > 1:
+    num_removed_trials += 1
+    continue
+  
   # after removing components that are considered "bad", reconstruct the mixed data
+  # TODO maybe only do this repair if bad_components_per_trial > 0?
   trial = ica.inverse_transform(sources_t.T)
-  """
   
   trial_data = []
   for ch in trial:
@@ -283,16 +283,23 @@ for trial, label in zip(trials, labels):
     # ch = trial[ch_index]
     cwt = create_ctw_for_channel(ch, widths_max=40)
     trial_data.append(cwt)
+  
   list_of_trial_data.append(trial_data)
+  list_of_labels.append(label)
 
 X = np.array(list_of_trial_data)
 print("X:", type(X), X.shape)
 # should be (num_trials, num_channels, num_f, num_t) (this was for STFT images...)
 
+# labels must match the trials after some might have been removed
+y = np.array(list_of_labels) - 1  # 0-4 instead of 1-5
+print("y:", type(y), y.shape)
+
 end_time_cwt = time.perf_counter()
 print(f"Time to generate CWTs: {end_time_cwt-start_time_cwt:.2f}s")
 
-print(f"ICA detected {num_bad_components} bad components in {num_bad_trials} trials (none removed).")
+print(f"ICA detected {num_bad_components} bad components in {num_bad_trials} trials.")
+print(f"Removed {num_removed_trials} trials with more than one bad component.")
 
 ###############################################################################
 
