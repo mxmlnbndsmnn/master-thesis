@@ -246,17 +246,18 @@ list_of_labels = []
 
 start_time_cwt = time.perf_counter()
 # CTW images
-num_bad_components = 0
-num_bad_trials = 0
-num_removed_trials = 0
+# num_bad_components = 0
+# num_bad_trials = 0
+# num_removed_trials = 0
 for trial, label in zip(trials, labels):
   
-  ica = FastICA(n_components=6, random_state=42)
+  """
+  ica = FastICA(n_components=8, random_state=42)
   ica_sources = ica.fit_transform(trial)  # get the estimated sources
   sources_t = ica_sources.T
   bad_components_per_trial = 0
   for i, source in enumerate(sources_t):
-    if kurtosis(source) > 10:
+    if kurtosis(source) > 16:
       sources_t[i][:] = 0
       num_bad_components += 1
       bad_components_per_trial += 1
@@ -273,6 +274,7 @@ for trial, label in zip(trials, labels):
   # after removing components that are considered "bad", reconstruct the mixed data
   # TODO maybe only do this repair if bad_components_per_trial > 0?
   trial = ica.inverse_transform(sources_t.T)
+  """
   
   trial_data = []
   for ch in trial:
@@ -295,8 +297,8 @@ print("y:", type(y), y.shape)
 end_time_cwt = time.perf_counter()
 print(f"Time to generate CWTs: {end_time_cwt-start_time_cwt:.2f}s")
 
-print(f"ICA detected {num_bad_components} bad components in {num_bad_trials} trials.")
-print(f"Removed {num_removed_trials} trials with more than one bad component.")
+# print(f"ICA detected {num_bad_components} bad components in {num_bad_trials} trials.")
+# print(f"Removed {num_removed_trials} trials with more than one bad component.")
 
 ###############################################################################
 
