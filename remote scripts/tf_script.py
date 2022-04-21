@@ -89,6 +89,31 @@ num_classes = 5
 
 ###############################################################################
 
+# apply butterworth bandpass filter before cutting trials from the eeg_data!
+
+# second-order sections
+def butter_bandpass_sos(lowcut, highcut, sample_freq, order=3):
+  nyq = sample_freq * 0.5
+  low = lowcut / nyq
+  high = highcut / nyq
+  sos = signal.butter(order, [low, high], analog=False, btype="bandpass", output="sos")
+  return sos
+
+
+# default axis is -1, but here we want to filter data for each channel
+def butter_bandpass_filter(data, lowcut, highcut, sample_freq, order=3, axis=1):
+  sos = butter_bandpass_sos(lowcut, highcut, sample_freq, order=order)
+  y = signal.sosfilt(sos, data, axis=axis)
+  return y
+
+print("Bandpass filter EEG data (4-40Hz)")
+start_time_bandpass = time.perf_counter()
+eeg_data = butter_bandpass_filter(eeg_data, 4.0, 40.0, sample_frequency, order=6, axis=1)
+end_time_bandpass = time.perf_counter()
+print(f"Time to apply bandpass filter: {end_time_bandpass-start_time_bandpass:.2f}s")
+
+###############################################################################
+
 def get_trials_x_and_y(eeg_data, events, sfreq, duration=1., prefix_time=0.2,
                        suffix_time=0.2, downsample_step=1, ch_picks=None):
   # reshape eeg data -> n_channels x n_times
@@ -170,34 +195,6 @@ print(f"Time to load EEG-data: {end_time_load_data-start_time_load_data:.2f}s")
 
 ###############################################################################
 
-# apply butterworth bandpass filter
-
-# second-order sections
-def butter_bandpass_sos(lowcut, highcut, sample_freq, order=3):
-  nyq = sample_freq * 0.5
-  low = lowcut / nyq
-  high = highcut / nyq
-  sos = signal.butter(order, [low, high], analog=False, btype="bandpass", output="sos")
-  return sos
-
-
-# default axis is -1, but here we want to filter data for each channel
-def butter_bandpass_filter(data, lowcut, highcut, sample_freq, order=3, axis=1):
-  sos = butter_bandpass_sos(lowcut, highcut, sample_freq, order=order)
-  y = signal.sosfilt(sos, data, axis=axis)
-  return y
-
-print("Bandpass filter EEG data (4-40Hz)")
-start_time_bandpass = time.perf_counter()
-eeg_data = butter_bandpass_filter(eeg_data, 4.0, 40.0, sample_frequency, order=6, axis=1)
-
-# TODO: apply bandpass filter before cutting trials from the eeg_data
-
-end_time_bandpass = time.perf_counter()
-print(f"Time to apply bandpass filter: {end_time_bandpass-start_time_bandpass:.2f}s")
-
-###############################################################################
-
 # generate the "images" per channel for all trials from 2 classes (1 vs 1)
 # pick trials and labels to do a 1 vs 1 classification
 # only pick trials for two classes, discard the rest
@@ -259,7 +256,7 @@ for trial, label in zip(trials, labels):
   sources_t = ica_sources.T
   bad_components_per_trial = 0
   for i, source in enumerate(sources_t):
-    if kurtosis(source) > 8:
+    if kurtosis(source) > 10:
       sources_t[i][:] = 0
       num_bad_components += 1
       bad_components_per_trial += 1
@@ -268,7 +265,7 @@ for trial, label in zip(trials, labels):
   if bad_components_per_trial > 0 :
     num_bad_trials += 1
   
-  # skip this trial entirely if more than one "bad" component
+  # skip this trial entirely if more than one "bad" component detected
   if bad_components_per_trial > 1:
     num_removed_trials += 1
     continue
