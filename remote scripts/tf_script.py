@@ -208,15 +208,20 @@ list_of_trial_data = []
 start_time_cwt = time.perf_counter()
 # CTW images
 num_bad_components = 0
+num_bad_trials = 0
 for trial, label in zip(trials, labels):
   
   ica = FastICA(n_components=6, random_state=42)
   ica_sources = ica.fit_transform(trial)  # get the estimated sources
   sources_t = ica_sources.T
+  is_bad_trial = False
   for i, source in enumerate(sources_t):
     if kurtosis(source) > 16:
-      sources_t[i][:] *= 0.1
+      # sources_t[i][:] *= 0.1
       num_bad_components += 1
+      if not is_bad_trial:
+        num_bad_trials += 1
+        is_bad_trial = True
   # after removing components that are considered "bad", reconstruct the mixed data
   trial = ica.inverse_transform(sources_t.T)
   
@@ -235,7 +240,7 @@ print("X:", type(X), X.shape)
 end_time_cwt = time.perf_counter()
 print(f"Time to generate CWTs: {end_time_cwt-start_time_cwt:.2f}s")
 
-print(f"ICA detected {num_bad_components} components considered bad.")
+print(f"ICA detected {num_bad_components} bad components in {num_bad_trials} trials (none removed).")
 
 ###############################################################################
 
