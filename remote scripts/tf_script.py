@@ -106,9 +106,9 @@ def butter_bandpass_filter(data, lowcut, highcut, sample_freq, order=3, axis=1):
   y = signal.sosfilt(sos, data, axis=axis)
   return y
 
-print("Bandpass filter EEG data (4-40Hz)")
+print("Bandpass filter EEG data (0,1-70Hz)")
 start_time_bandpass = time.perf_counter()
-eeg_data = butter_bandpass_filter(eeg_data, 0.1, 40.0, sample_frequency, order=3, axis=1)
+eeg_data = butter_bandpass_filter(eeg_data, 0.1, 70.0, sample_frequency, order=3, axis=1)
 end_time_bandpass = time.perf_counter()
 print(f"Time to apply bandpass filter: {end_time_bandpass-start_time_bandpass:.2f}s")
 
