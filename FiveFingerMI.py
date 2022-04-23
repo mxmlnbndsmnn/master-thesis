@@ -90,34 +90,41 @@ def butter_bandpass_filter(data, lowcut, highcut, sample_freq, order=3, axis=1):
   y = signal.sosfilt(sos, data, axis=axis)
   return y
 
-eeg_data = butter_bandpass_filter(eeg_data, 4.0, 40.0, sample_frequency, order=6, axis=1)
+# eeg_data = butter_bandpass_filter(eeg_data, 4.0, 40.0, sample_frequency, order=6, axis=1)
 
 ###############################################################################
 
 varis = []
 kurts = []
+max_values = []
+min_values = []
 for i, event in enumerate(events):
-  if i > 20:
-    break
+  # if i > 20:
+  #   break
   
   # event = events[734]
   start_frame = event["start"]
   end_frame = event["stop"]
-  
-  # compute ICA
   X = eeg_data[start_frame:end_frame,:]
+  
+  max_values.append(X.max())
+  min_values.append(X.min())
+  
+  continue
+
+  # compute ICA
   # X = eeg_data[start_frame:end_frame,:-1]  # remove the last channel (X3)
   # not needed when picking channels
-  ica = FastICA(n_components=10, random_state=42)
+  ica = FastICA(n_components=8, random_state=42)
   S_ = ica.fit_transform(X)  # Get the estimated sources
   A_ = ica.mixing_  # Get estimated mixing matrix
   
   # plot raw data individually
-  plt.figure(figsize=(10, 10))
-  for i in range(len(ch_picks)):
-    plt.subplot(5,5,i+1)
-    plt.title(ch_names[i])
-    plt.plot(X.T[i])
+  # plt.figure(figsize=(10, 10))
+  # for i in range(len(ch_picks)):
+  #   plt.subplot(5,5,i+1)
+  #   plt.title(ch_names[i])
+  #   plt.plot(X.T[i])
   
   # compute PCA
   # pca = PCA(n_components=5)
@@ -130,6 +137,7 @@ for i, event in enumerate(events):
     # print(f"Kurtosis: {kurtosis(s):.2f}")
     varis.append(s.var())
     kurts.append(kurtosis(s))
+
 
   plt.figure(figsize=(10,2))
   for i in range(5):
@@ -162,6 +170,8 @@ for i, event in enumerate(events):
 
 varis = np.array(varis)
 kurts = np.array(kurts)
+max_values = np.array(max_values)
+min_values = np.array(min_values)
 
 exit()
 

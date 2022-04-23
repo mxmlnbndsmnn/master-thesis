@@ -108,11 +108,15 @@ def butter_bandpass_filter(data, lowcut, highcut, sample_freq, order=3, axis=1):
 
 print("Bandpass filter EEG data (4-40Hz)")
 start_time_bandpass = time.perf_counter()
-eeg_data = butter_bandpass_filter(eeg_data, 2.0, 70.0, sample_frequency, order=3, axis=1)
+eeg_data = butter_bandpass_filter(eeg_data, 0.1, 40.0, sample_frequency, order=3, axis=1)
 end_time_bandpass = time.perf_counter()
 print(f"Time to apply bandpass filter: {end_time_bandpass-start_time_bandpass:.2f}s")
 
 ###############################################################################
+
+# test: check min and max eeg values
+max_values = []
+min_values = []
 
 def get_trials_x_and_y(eeg_data, events, sfreq, duration=1., prefix_time=0.2,
                        suffix_time=0.2, downsample_step=1, ch_picks=None):
@@ -150,6 +154,10 @@ def get_trials_x_and_y(eeg_data, events, sfreq, duration=1., prefix_time=0.2,
     
     # event type (1-5)
     y.append(event['event'])
+    
+    # test: check min and max eeg values
+    max_values.append(trial.max())
+    min_values.append(trial.min())
   
   return X, y
 
@@ -183,6 +191,13 @@ else:
 
 trials, labels = get_trials_x_and_y(eeg_data, events, sample_frequency,
                                     downsample_step=downsample_step, ch_picks=ch_picks)
+# test: check min and max eeg values
+max_values = np.array(max_values)
+min_values = np.array(min_values)
+print(f"smallest value: {min_values.min()}")
+print(f"largest value: {max_values.max()}")
+print(f"Number of trials below -200: {(min_values<-200).sum()}")
+print(f"Number of trials above +200: {(max_values>200).sum()}")
 
 # X_raw = np.array(trials)  # use with "fake" labels (for 2 class problems)
 # y = np.array(labels) - 1  # labels should range from 0-4 (?)
