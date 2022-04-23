@@ -200,6 +200,17 @@ print(f"Time to load EEG-data: {end_time_load_data-start_time_load_data:.2f}s")
 
 ###############################################################################
 
+# shuffle both trials and labels in unison
+def parallel_shuffle(a1, a2):
+  assert len(a1) == len(a2)
+  permutation = np.random.permutation(len(a1))
+  return [a1[i] for i in permutation], [a2[i] for i in permutation]
+
+
+trials, labels = parallel_shuffle(trials, labels)
+
+###############################################################################
+
 # generate the "images" per channel for all trials from 2 classes (1 vs 1)
 # pick trials and labels to do a 1 vs 1 classification
 # only pick trials for two classes, discard the rest
