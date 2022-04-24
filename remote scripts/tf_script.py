@@ -296,7 +296,7 @@ for trial, label in zip(trials, labels):
   for ch in trial:
   # for ch_index in ch_picks:
     # ch = trial[ch_index]
-    cwt = create_ctw_for_channel(ch, widths_max=20)
+    cwt = create_ctw_for_channel(ch, widths_max=30)
     trial_data.append(cwt)
   
   list_of_trial_data.append(trial_data)
@@ -402,7 +402,7 @@ for i in range(k):
   model.add(layers.Dropout(0.3))
   model.add(layers.Flatten())
   # model.add(layers.Dense(64, activation="elu"))
-  model.add(layers.Dense(32, activation="elu"))
+  # model.add(layers.Dense(32, activation="elu"))
   model.add(layers.Dense(num_classes, activation="softmax"))
   
   # instantiate an optimizer
