@@ -296,7 +296,7 @@ for trial, label in zip(trials, labels):
   for ch in trial:
   # for ch_index in ch_picks:
     # ch = trial[ch_index]
-    cwt = create_ctw_for_channel(ch, widths_max=40)
+    cwt = create_ctw_for_channel(ch, widths_max=30)
     trial_data.append(cwt)
   
   list_of_trial_data.append(trial_data)
