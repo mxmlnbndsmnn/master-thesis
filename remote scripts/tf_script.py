@@ -302,6 +302,7 @@ for i in range(k):
   # model.add(layers.MaxPooling2D(pool_size=(3,1)))
   # model.add(layers.Dropout(0.3))
   model.add(layers.Conv2D(60, 5, padding="same", activation="elu"))
+  model.add(layers.Conv2D(90, 5, padding="same", activation="elu"))
   model.add(layers.BatchNormalization())
   model.add(layers.MaxPooling2D(pool_size=(3,1)))
   model.add(layers.Dropout(0.3))
