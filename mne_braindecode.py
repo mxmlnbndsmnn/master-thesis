@@ -78,7 +78,8 @@ ch_names = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'O1', 'O2',
 # ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
 # pick almost all channels
 # ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-ch_picks = [12, 13, 16, 17, 19]
+# ch_picks = [1, 2, 3, 4, 5, 6, 7, 9, 13, 15, 17, 18, 19, 20]
+ch_picks = [0, 2, 3, 4, 5, 6, 7, 8, 12, 14, 16, 18, 19, 20]
 print("Channels:")
 print([ch_names[i] for i in ch_picks])
 

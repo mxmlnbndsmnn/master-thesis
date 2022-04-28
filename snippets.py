@@ -8,21 +8,31 @@ Created on Tue Jan 25 20:23:12 2022
 import numpy as np
 # import tensorflow as tf
 # from tensorflow.math import confusion_matrix
-# import seaborn as sn
-# import matplotlib.pyplot as plt
+import seaborn as sn
+import matplotlib.pyplot as plt
+import pandas as pd
 
 
-a = np.array([1,2,3,4,5,6])
-b = np.array([10,20,30,40,50,60])
+"""
+perf = pd.read_excel("perf1.ods")
+print(perf)
 
-def parallel_shuffle(a1, a2):
-  assert len(a1) == len(a2)
-  permutation = np.random.permutation(len(a1))
-  return [a1[i] for i in permutation], [a2[i] for i in permutation]
+# fig, ax = plt.subplots(figsize=(4,3))
+ax = sn.barplot(data=perf, x="subject", y="acc_valid", color="blue")
+ax.set_xlabel("Datensatz")
+ax.set_ylabel("Genauigkeit in %")
+ax.axhline(20, color="red")  # draw a horizontal line at chance-level accuracy
+"""
 
 
-a, b = parallel_shuffle(a, b)
-print(a,b)
+perf = pd.read_excel("perf2.ods")
+# https://seaborn.pydata.org/generated/seaborn.catplot.html
+sn.set_theme(style="whitegrid")
+graph = sn.catplot(kind="bar", data=perf, x="ch", y="acc", col="subject")
+graph.despine()
+graph.set_axis_labels("", "Genauigkeit in %")
+for ax in graph.axes[0]:
+  ax.axhline(20, color="red")
 
 
 """
