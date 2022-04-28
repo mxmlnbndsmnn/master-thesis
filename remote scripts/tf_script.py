@@ -152,9 +152,30 @@ ch_names = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'O1', 'O2',
 
 # pick all channels except reference and Fp1, Fp2
 ch_picks = [2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+
+# pick (optimal) frequency and electrode selection per subject
+target_frequency = 200
+if file_index >= 17:
+  target_frequency = 500
+downsample_step = int(sample_frequency / target_frequency)
+
+if file_index <= 1:
+  # A
+  ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+elif file_index == 6 or file_index == 7:
+  # C, without right (7)
+  ch_picks = [0, 2, 3, 4, 5, 6, 7, 8, 12, 14, 16, 18, 19, 20]
+elif file_index == 16:
+  # H
+  ch_picks = [12, 13, 16, 17, 19]
+elif file_index > 16:
+  # I, without T5, T6
+  ch_picks = [2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 18, 19, 20]
+  
 print("Use EEG channels:")
 print([ch_names[i] for i in ch_picks])
 
+"""
 downsample_step = 1
 if sample_frequency == 1000:
   downsample_step = 5
@@ -162,9 +183,13 @@ elif sample_frequency == 200:
   downsample_step = 1
 else:
   raise RuntimeError("Unexpected target frequency:", sample_frequency)
+"""
 
 trials, labels = get_trials_x_and_y(eeg_data, events, sample_frequency,
                                     downsample_step=downsample_step, ch_picks=ch_picks)
+
+print(f"Data sample frequency: {sample_frequency} Target frequency: {sample_frequency}")
+sample_frequency = target_frequency
 
 print("trial shape:", type(trials[0]), trials[0].shape)  # trials is a simple list
 # print("y:", type(y), y.shape)
@@ -191,6 +216,7 @@ list_of_labels = []
 start_time_img = time.perf_counter()
 
 # STFT images
+"""
 for trial, label in zip(trials, labels):
   
   trial_data = []
@@ -201,9 +227,8 @@ for trial, label in zip(trials, labels):
 
   list_of_trial_data.append(trial_data)
   list_of_labels.append(label)
-
-
 """
+
 # CTW images
 for trial, label in zip(trials, labels):
   
@@ -217,7 +242,6 @@ for trial, label in zip(trials, labels):
   list_of_trial_data.append(trial_data)
   list_of_labels.append(label)
 
-"""
 
 end_time_img = time.perf_counter()
 print(f"Time to generate images: {end_time_img-start_time_img:.2f}s")
@@ -296,6 +320,7 @@ for i in range(k):
   model = Sequential()
   
   # STFT:
+  """
   model.add(layers.Conv2D(30, 5, padding="same", activation="elu", input_shape=input_shape))
   # print(model.output_shape)
   # model.add(layers.BatchNormalization())
@@ -308,9 +333,9 @@ for i in range(k):
   model.add(layers.Dropout(0.3))
   model.add(layers.Flatten())
   model.add(layers.Dense(num_classes, activation="softmax"))
+  """
   
   # CWT:
-  """
   model.add(layers.Conv2D(30, 5, padding="same", activation="elu", input_shape=input_shape))
   # print(model.output_shape)
   model.add(layers.BatchNormalization())
@@ -328,7 +353,7 @@ for i in range(k):
   # model.add(layers.Dense(64, activation="elu"))
   # model.add(layers.Dense(32, activation="elu"))
   model.add(layers.Dense(num_classes, activation="softmax"))
-  """
+  
   # instantiate an optimizer
   learn_rate = 0.001
   print(f"Learn rate: {learn_rate}")
