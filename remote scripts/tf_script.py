@@ -7,7 +7,7 @@ from scipy.stats import kurtosis
 from sklearn.decomposition import FastICA
 # import matplotlib.pyplot as plt
 from eeg_data_loader import eeg_data_loader
-from create_eeg_image import create_ctw_for_channel
+from create_eeg_image import create_ctw_for_channel, create_stft_for_channel
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras.models import Sequential
@@ -54,23 +54,6 @@ subject_data_files = ['5F-SubjectA-160405-5St-SGLHand.mat',  # 0
                       '5F-SubjectH-160804-5St-SGLHand-HFREQ.mat',
                       '5F-SubjectI-160719-5St-SGLHand-HFREQ.mat',
                       '5F-SubjectI-160723-5St-SGLHand-HFREQ.mat']  # 18
-
-"""
-# 1000Hz files
-subject_data_files = ['5F-SubjectA-160408-5St-SGLHand-HFREQ.mat',  # 0
-                      '5F-SubjectB-160309-5St-SGLHand-HFREQ.mat',
-                      '5F-SubjectB-160311-5St-SGLHand-HFREQ.mat',
-                      '5F-SubjectC-160429-5St-SGLHand-HFREQ.mat',
-                      '5F-SubjectE-160321-5St-SGLHand-HFREQ.mat',
-                      '5F-SubjectE-160415-5St-SGLHand-HFREQ.mat',
-                      '5F-SubjectE-160429-5St-SGLHand-HFREQ.mat',
-                      '5F-SubjectF-160210-5St-SGLHand-HFREQ.mat',
-                      '5F-SubjectG-160413-5St-SGLHand-HFREQ.mat',
-                      '5F-SubjectG-160428-5St-SGLHand-HFREQ.mat',
-                      '5F-SubjectH-160804-5St-SGLHand-HFREQ.mat',  # 10
-                      '5F-SubjectI-160719-5St-SGLHand-HFREQ.mat',
-                      '5F-SubjectI-160723-5St-SGLHand-HFREQ.mat']
-"""
 
 subject_data_file = subject_data_files[file_index]
 subject_data_path = os_path.join(eeg_data_folder, subject_data_file)
@@ -163,12 +146,6 @@ def get_trials_x_and_y(eeg_data, events, sfreq, duration=1., prefix_time=0.2,
 # ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
 # pick all channels (except reference)
 # ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-# pick all except O1 and O2 (back of the head)
-# ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-# pick all except T5 and T6
-# ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 18, 19, 20]
-# pick all except F7 and F8
-# ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 14, 15, 16, 17, 18, 19, 20]
 
 ch_names = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'O1', 'O2',
             'A1', 'A2', 'F7', 'F8', 'T3', 'T4', 'T5', 'T6', 'Fz', 'Cz', 'Pz', 'X3']
@@ -189,9 +166,6 @@ else:
 trials, labels = get_trials_x_and_y(eeg_data, events, sample_frequency,
                                     downsample_step=downsample_step, ch_picks=ch_picks)
 
-# X_raw = np.array(trials)  # use with "fake" labels (for 2 class problems)
-# y = np.array(labels) - 1  # labels should range from 0-4 (?)
-
 print("trial shape:", type(trials[0]), trials[0].shape)  # trials is a simple list
 # print("y:", type(y), y.shape)
 
@@ -211,86 +185,27 @@ trials, labels = parallel_shuffle(trials, labels)
 
 ###############################################################################
 
-# generate the "images" per channel for all trials from 2 classes (1 vs 1)
-# pick trials and labels to do a 1 vs 1 classification
-# only pick trials for two classes, discard the rest
-"""
-num_classes = 2
-
-# compare 0-1, 0-2, 0-3, 0-4, 1-2, 1-3, 1-4, 2-3, 2-4, 3-4
-comparisons = [[0,1], [0,2], [0,3], [0,4], [1,2], [1,3], [1,4], [2,3], [2,4], [3,4]]
-comparison_index = int(sys.argv[1])
-
-first_class = comparisons[comparison_index][0]
-second_class = comparisons[comparison_index][1]
-print(f"Compare class {first_class} vs {second_class}")
-print("Trials per class:", first_class, "=", (y==first_class).sum())
-print("Trials per class:", second_class, "=", (y==second_class).sum())
-
-list_of_trial_data = []
-list_of_fake_labels = []
-
-# CTW images
-for trial, label in zip(X_raw, y):
-  fake_label = 0
-  if label == first_class:
-    fake_label = 0
-  elif label == second_class:
-    fake_label = 1
-  else:
-    continue  # skip all other classes
-  
-  trial_data = []
-  for ch_index in ch_picks:
-    ch = trial[ch_index]
-    cwt = create_ctw_for_channel(ch, widths_max=40)
-    trial_data.append(cwt)
-  list_of_trial_data.append(trial_data)
-  list_of_fake_labels.append(fake_label)
-
-X = np.array(list_of_trial_data)
-print("X:", type(X), X.shape)
-# should be (num_trials, num_channels, num_f, num_t)
-y = np.array(list_of_fake_labels)
-"""
-
-###############################################################################
-
 # generate the "images" per channel for all trials - normal (5 classes)
 list_of_trial_data = []
 list_of_labels = []
+start_time_img = time.perf_counter()
 
-start_time_cwt = time.perf_counter()
-# CTW images
-# num_bad_components = 0
-# num_bad_trials = 0
-# num_removed_trials = 0
+# STFT images
 for trial, label in zip(trials, labels):
   
-  """
-  ica = FastICA(n_components=8, random_state=42)
-  ica_sources = ica.fit_transform(trial)  # get the estimated sources
-  sources_t = ica_sources.T
-  bad_components_per_trial = 0
-  for i, source in enumerate(sources_t):
-    if kurtosis(source) > 16:
-      sources_t[i][:] = 0
-      num_bad_components += 1
-      bad_components_per_trial += 1
-  
-  # allow one "bad" component per trial (that is removed by ICA repair anyway)
-  if bad_components_per_trial > 0 :
-    num_bad_trials += 1
-  
-  # skip this trial entirely if more than one "bad" component detected
-  if bad_components_per_trial > 1:
-    num_removed_trials += 1
-    continue
-  
-  # after removing components that are considered "bad", reconstruct the mixed data
-  # TODO maybe only do this repair if bad_components_per_trial > 0?
-  trial = ica.inverse_transform(sources_t.T)
-  """
+  trial_data = []
+  for ch in trial:
+    stft, f, t = create_stft_for_channel(ch, sample_frequency=sample_frequency,
+                                         nperseg=60, high_cut_freq=70)
+    trial_data.append(stft)
+
+  list_of_trial_data.append(trial_data)
+  list_of_labels.append(label)
+
+
+"""
+# CTW images
+for trial, label in zip(trials, labels):
   
   trial_data = []
   for ch in trial:
@@ -302,19 +217,18 @@ for trial, label in zip(trials, labels):
   list_of_trial_data.append(trial_data)
   list_of_labels.append(label)
 
+"""
+
+end_time_img = time.perf_counter()
+print(f"Time to generate images: {end_time_img-start_time_img:.2f}s")
+
 X = np.array(list_of_trial_data)
 print("X:", type(X), X.shape)
-# should be (num_trials, num_channels, num_f, num_t) (this was for STFT images...)
+# should be (num_trials, num_channels, num_f, num_t) for STFT images
 
 # labels must match the trials after some might have been removed
 y = np.array(list_of_labels) - 1  # 0-4 instead of 1-5
 print("y:", type(y), y.shape)
-
-end_time_cwt = time.perf_counter()
-print(f"Time to generate CWTs: {end_time_cwt-start_time_cwt:.2f}s")
-
-# print(f"ICA detected {num_bad_components} bad components in {num_bad_trials} trials.")
-# print(f"Removed {num_removed_trials} trials with more than one bad component.")
 
 ###############################################################################
 
@@ -348,17 +262,11 @@ def calculate_cm_scores(cm):
   precision = tp / tp_and_fp # how many predictions for this class are correct
   recall = tp / tp_and_fn # how many of the class trials have been found
   f_score = []
-  # print("Precision:")
-  # print(precision)
-  # print("Recall:")
-  # print(recall)
   for pr, re in zip(precision, recall):
     f1 = 0
     if pr > 0 or re > 0:
       f1 = 2 * (pr*re) / (pr+re)
     f_score.append(f1)
-  # print("F1 score:")
-  # print(f_score)
   return precision, recall, f_score
 
 
@@ -387,6 +295,21 @@ for i in range(k):
   # create the model
   model = Sequential()
   
+  # STFT:
+  model.add(layers.Conv2D(30, 5, padding="same", activation="elu", input_shape=input_shape))
+  # print(model.output_shape)
+  # model.add(layers.BatchNormalization())
+  # model.add(layers.MaxPooling2D(pool_size=(3,1)))
+  # model.add(layers.Dropout(0.3))
+  model.add(layers.Conv2D(60, 5, padding="same", activation="elu"))
+  model.add(layers.BatchNormalization())
+  model.add(layers.MaxPooling2D(pool_size=(3,1)))
+  model.add(layers.Dropout(0.3))
+  model.add(layers.Flatten())
+  model.add(layers.Dense(num_classes, activation="softmax"))
+  
+  # CWT:
+  """
   model.add(layers.Conv2D(30, 5, padding="same", activation="elu", input_shape=input_shape))
   # print(model.output_shape)
   model.add(layers.BatchNormalization())
@@ -404,7 +327,7 @@ for i in range(k):
   # model.add(layers.Dense(64, activation="elu"))
   # model.add(layers.Dense(32, activation="elu"))
   model.add(layers.Dense(num_classes, activation="softmax"))
-  
+  """
   # instantiate an optimizer
   learn_rate = 0.001
   print(f"Learn rate: {learn_rate}")
@@ -506,8 +429,3 @@ for i, r in enumerate(recall):
 print("Mean F1 score per class:")
 for i, f1 in enumerate(f_score):
   print(f"{i}: {f1:.2f}")
-
-# use for 2 class problems
-# print(f"first_class: {first_class}")
-# print(f"second_class: {second_class}")
-
