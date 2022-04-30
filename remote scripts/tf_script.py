@@ -32,6 +32,11 @@ if len(sys.argv) == 1:
 
 file_index = int(sys.argv[1])
 
+use_model = 1
+if file_index > 18:
+  file_index -= 19
+  use_model = 2
+print(f"Use model {use_model}")
 
 eeg_data_folder = "eeg-data"
 # all files
@@ -227,39 +232,11 @@ for trial, label in zip(trials, labels):
 """
 
 # CTW images
-num_bad_components = 0
-num_bad_trials = 0
-num_removed_trials = 0
 for trial, label in zip(trials, labels):
-  
-  ica = FastICA(n_components=8, random_state=4)
-  ica_sources = ica.fit_transform(trial)  # get the estimated sources
-  sources_t = ica_sources.T
-  bad_components_per_trial = 0
-  for i, source in enumerate(sources_t):
-    if kurtosis(source) > 10:
-      sources_t[i][:] = 0
-      num_bad_components += 1
-      bad_components_per_trial += 1
-  
-  # allow one "bad" component per trial (that is removed by ICA repair anyway)
-  if bad_components_per_trial > 0 :
-    num_bad_trials += 1
-  
-  # skip this trial entirely if more than one "bad" component
-  if bad_components_per_trial > 1:
-    num_removed_trials += 1
-    continue
-  
-  # after removing components that are considered "bad", reconstruct the mixed data
-  if bad_components_per_trial > 0:
-    trial = ica.inverse_transform(sources_t.T)
   
   trial_data = []
   for ch in trial:
-  # for ch_index in ch_picks:
-    # ch = trial[ch_index]
-    cwt = create_ctw_for_channel(ch, widths_max=30)
+    cwt = create_ctw_for_channel(ch, widths_max=25)
     trial_data.append(cwt)
   
   list_of_trial_data.append(trial_data)
@@ -268,9 +245,6 @@ for trial, label in zip(trials, labels):
 
 end_time_img = time.perf_counter()
 print(f"Time to generate images: {end_time_img-start_time_img:.2f}s")
-
-print(f"ICA detected {num_bad_components} bad components in {num_bad_trials} trials.")
-print(f"Removed {num_removed_trials} trials with more than one bad component.")
 
 X = np.array(list_of_trial_data)
 print("X:", type(X), X.shape)
@@ -362,23 +336,34 @@ for i in range(k):
   """
   
   # CWT:
-  model.add(layers.Conv2D(30, 5, padding="same", activation="elu", input_shape=input_shape))
-  # print(model.output_shape)
-  model.add(layers.BatchNormalization())
-  model.add(layers.MaxPooling2D(pool_size=(3,1)))
-  model.add(layers.Dropout(0.3))
-  model.add(layers.Conv2D(60, 7, padding="same", activation="elu"))
-  model.add(layers.BatchNormalization())
-  model.add(layers.MaxPooling2D(pool_size=(3,1)))
-  model.add(layers.Dropout(0.3))
-  model.add(layers.Conv2D(90, 7, padding="same", activation="elu"))
-  model.add(layers.BatchNormalization())
-  model.add(layers.MaxPooling2D(pool_size=(3,1)))
-  model.add(layers.Dropout(0.3))
-  model.add(layers.Flatten())
-  # model.add(layers.Dense(64, activation="elu"))
-  # model.add(layers.Dense(32, activation="elu"))
-  model.add(layers.Dense(num_classes, activation="softmax"))
+  if use_model == 1:
+    model.add(layers.Conv2D(30, 5, padding="same", activation="elu", input_shape=input_shape))
+    # print(model.output_shape)
+    model.add(layers.BatchNormalization())
+    model.add(layers.MaxPooling2D(pool_size=(1,3)))
+    model.add(layers.Dropout(0.3))
+    model.add(layers.Conv2D(60, 7, padding="same", activation="elu"))
+    model.add(layers.BatchNormalization())
+    model.add(layers.MaxPooling2D(pool_size=(1,3)))
+    model.add(layers.Dropout(0.3))
+    model.add(layers.Conv2D(90, 7, padding="same", activation="elu"))
+    model.add(layers.BatchNormalization())
+    model.add(layers.MaxPooling2D(pool_size=(1,3)))
+    model.add(layers.Dropout(0.3))
+    model.add(layers.Flatten())
+    model.add(layers.Dense(num_classes, activation="softmax"))
+  else:
+    model.add(layers.Conv2D(40, 5, padding="same", activation="elu", input_shape=input_shape))
+    # print(model.output_shape)
+    model.add(layers.BatchNormalization())
+    model.add(layers.MaxPooling2D(pool_size=(1,3)))
+    model.add(layers.Dropout(0.3))
+    model.add(layers.Conv2D(80, 7, padding="same", activation="elu"))
+    model.add(layers.BatchNormalization())
+    model.add(layers.MaxPooling2D(pool_size=(1,3)))
+    model.add(layers.Dropout(0.3))
+    model.add(layers.Flatten())
+    model.add(layers.Dense(num_classes, activation="softmax"))
   
   # instantiate an optimizer
   learn_rate = 0.001
