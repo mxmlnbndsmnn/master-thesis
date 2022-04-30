@@ -153,25 +153,22 @@ ch_names = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'O1', 'O2',
 # pick all channels except reference and Fp1, Fp2
 ch_picks = [2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20]
 
-# pick (optimal) frequency and electrode selection per subject
 target_frequency = 200
-if file_index >= 17:
-  target_frequency = 500
 downsample_step = int(sample_frequency / target_frequency)
 
-if file_index <= 1:
-  # A
-  ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-elif file_index == 6 or file_index == 7:
+# do not select too few electrodes when using ICA (we need enough components)
+"""
+if file_index == 6 or file_index == 7:
   # C, without right (7)
   ch_picks = [0, 2, 3, 4, 5, 6, 7, 8, 12, 14, 16, 18, 19, 20]
 elif file_index == 16:
-  # H
+  # H (11)
   ch_picks = [12, 13, 16, 17, 19]
-elif file_index > 16:
+# elif file_index > 16:
   # I, without T5, T6
-  ch_picks = [2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 18, 19, 20]
-  
+  # ch_picks = [2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 18, 19, 20]
+"""
+
 print("Use EEG channels:")
 print([ch_names[i] for i in ch_picks])
 
@@ -188,7 +185,7 @@ else:
 trials, labels = get_trials_x_and_y(eeg_data, events, sample_frequency,
                                     downsample_step=downsample_step, ch_picks=ch_picks)
 
-print(f"Data sample frequency: {sample_frequency} Target frequency: {sample_frequency}")
+print(f"Data sample frequency: {sample_frequency} Target frequency: {target_frequency}")
 sample_frequency = target_frequency
 
 print("trial shape:", type(trials[0]), trials[0].shape)  # trials is a simple list
@@ -230,7 +227,33 @@ for trial, label in zip(trials, labels):
 """
 
 # CTW images
+num_bad_components = 0
+num_bad_trials = 0
+num_removed_trials = 0
 for trial, label in zip(trials, labels):
+  
+  ica = FastICA(n_components=8, random_state=4)
+  ica_sources = ica.fit_transform(trial)  # get the estimated sources
+  sources_t = ica_sources.T
+  bad_components_per_trial = 0
+  for i, source in enumerate(sources_t):
+    if kurtosis(source) > 10:
+      sources_t[i][:] = 0
+      num_bad_components += 1
+      bad_components_per_trial += 1
+  
+  # allow one "bad" component per trial (that is removed by ICA repair anyway)
+  if bad_components_per_trial > 0 :
+    num_bad_trials += 1
+  
+  # skip this trial entirely if more than one "bad" component
+  if bad_components_per_trial > 1:
+    num_removed_trials += 1
+    continue
+  
+  # after removing components that are considered "bad", reconstruct the mixed data
+  if bad_components_per_trial > 0:
+    trial = ica.inverse_transform(sources_t.T)
   
   trial_data = []
   for ch in trial:
@@ -245,6 +268,9 @@ for trial, label in zip(trials, labels):
 
 end_time_img = time.perf_counter()
 print(f"Time to generate images: {end_time_img-start_time_img:.2f}s")
+
+print(f"ICA detected {num_bad_components} bad components in {num_bad_trials} trials.")
+print(f"Removed {num_removed_trials} trials with more than one bad component.")
 
 X = np.array(list_of_trial_data)
 print("X:", type(X), X.shape)
