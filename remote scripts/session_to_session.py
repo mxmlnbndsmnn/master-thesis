@@ -34,81 +34,21 @@ run_index = int(sys.argv[1])
 eeg_data_folder = "eeg-data"
 
 # use the first file for train+validation and the second for testing
-# note that for some subjects more combinations are possible than listed here
+# sample datasets from subjects C and E for inter-subject session-to-session training
+files_c = ["5F-SubjectC-151204-5St-SGLHand.mat",
+           "5F-SubjectC-160429-5St-SGLHand-HFREQ.mat"]
+files_e = ["5F-SubjectE-160321-5St-SGLHand-HFREQ.mat",
+           "5F-SubjectE-160415-5St-SGLHand-HFREQ.mat",
+           "5F-SubjectE-160429-5St-SGLHand-HFREQ.mat"]
+
+# create 2x6 combinations
 subject_data_files = []
-subject_data_files.append(["5F-SubjectB-151110-5St-SGLHand.mat",
-                           "5F-SubjectB-160311-5St-SGLHand-HFREQ.mat"])
-subject_data_files.append(["5F-SubjectB-160311-5St-SGLHand-HFREQ.mat",
-                           "5F-SubjectB-151110-5St-SGLHand.mat"])
-subject_data_files.append(["5F-SubjectB-151110-5St-SGLHand.mat",
-                           "5F-SubjectB-160316-5St-SGLHand.mat"])
-subject_data_files.append(["5F-SubjectB-160316-5St-SGLHand.mat",
-                           "5F-SubjectB-151110-5St-SGLHand.mat"])
-subject_data_files.append(["5F-SubjectB-160309-5St-SGLHand-HFREQ.mat",
-                           "5F-SubjectB-160311-5St-SGLHand-HFREQ.mat"])
-subject_data_files.append(["5F-SubjectB-160311-5St-SGLHand-HFREQ.mat",
-                           "5F-SubjectB-160309-5St-SGLHand-HFREQ.mat"])
-subject_data_files.append(["5F-SubjectB-160309-5St-SGLHand-HFREQ.mat",
-                           "5F-SubjectB-160316-5St-SGLHand.mat"])
-subject_data_files.append(["5F-SubjectB-160316-5St-SGLHand.mat",
-                           "5F-SubjectB-160309-5St-SGLHand-HFREQ.mat"])
-subject_data_files.append(["5F-SubjectB-160311-5St-SGLHand-HFREQ.mat",
-                           "5F-SubjectB-160316-5St-SGLHand.mat"])
-subject_data_files.append(["5F-SubjectB-160316-5St-SGLHand.mat",
-                           "5F-SubjectB-160311-5St-SGLHand-HFREQ.mat"])
-
-subject_data_files.append(["5F-SubjectE-160321-5St-SGLHand-HFREQ.mat",
-                           "5F-SubjectE-160429-5St-SGLHand-HFREQ.mat"])
-subject_data_files.append(["5F-SubjectE-160429-5St-SGLHand-HFREQ.mat",
-                           "5F-SubjectE-160321-5St-SGLHand-HFREQ.mat"])
-subject_data_files.append(["5F-SubjectE-160415-5St-SGLHand-HFREQ.mat",
-                           "5F-SubjectE-160429-5St-SGLHand-HFREQ.mat"])
-subject_data_files.append(["5F-SubjectE-160429-5St-SGLHand-HFREQ.mat",
-                           "5F-SubjectE-160415-5St-SGLHand-HFREQ.mat"])
-
-subject_data_files.append(["5F-SubjectF-151027-5St-SGLHand.mat",
-                           "5F-SubjectF-160210-5St-SGLHand-HFREQ.mat"])
-subject_data_files.append(["5F-SubjectF-160210-5St-SGLHand-HFREQ.mat",
-                           "5F-SubjectF-151027-5St-SGLHand.mat"])
-subject_data_files.append(["5F-SubjectF-160209-5St-SGLHand.mat",
-                           "5F-SubjectF-160210-5St-SGLHand-HFREQ.mat"])
-subject_data_files.append(["5F-SubjectF-160210-5St-SGLHand-HFREQ.mat",
-                           "5F-SubjectF-160209-5St-SGLHand.mat"])
-
-# subject_data_files.append(["5F-SubjectA-160405-5St-SGLHand.mat",
-                           # "5F-SubjectA-160408-5St-SGLHand-HFREQ.mat"])
-# subject_data_files.append(["5F-SubjectA-160408-5St-SGLHand-HFREQ.mat",
-                          # "5F-SubjectA-160405-5St-SGLHand.mat"])
-
-# subject_data_files.append(["5F-SubjectB-151110-5St-SGLHand.mat",
-                           # "5F-SubjectB-160309-5St-SGLHand-HFREQ.mat"])
-# subject_data_files.append(["5F-SubjectB-160309-5St-SGLHand-HFREQ.mat",
-                           # "5F-SubjectB-151110-5St-SGLHand.mat"])
-
-# subject_data_files.append(["5F-SubjectC-151204-5St-SGLHand.mat",
-                           # "5F-SubjectC-160429-5St-SGLHand-HFREQ.mat"])
-# subject_data_files.append(["5F-SubjectC-160429-5St-SGLHand-HFREQ.mat",
-                           # "5F-SubjectC-151204-5St-SGLHand.mat"])
-
-# subject_data_files.append(["5F-SubjectE-160321-5St-SGLHand-HFREQ.mat",
-                           # "5F-SubjectE-160415-5St-SGLHand-HFREQ.mat"])
-# subject_data_files.append(["5F-SubjectE-160415-5St-SGLHand-HFREQ.mat",
-                           # "5F-SubjectE-160321-5St-SGLHand-HFREQ.mat"])
-
-# subject_data_files.append(["5F-SubjectF-151027-5St-SGLHand.mat",
-                           # "5F-SubjectF-160209-5St-SGLHand.mat"])
-# subject_data_files.append(["5F-SubjectF-160209-5St-SGLHand.mat",
-                           # "5F-SubjectF-151027-5St-SGLHand.mat"])
-
-# subject_data_files.append(["5F-SubjectG-160413-5St-SGLHand-HFREQ.mat",
-                           # "5F-SubjectG-160428-5St-SGLHand-HFREQ.mat"])
-# subject_data_files.append(["5F-SubjectG-160428-5St-SGLHand-HFREQ.mat",
-                           # "5F-SubjectG-160413-5St-SGLHand-HFREQ.mat"])
-
-# subject_data_files.append(["5F-SubjectI-160719-5St-SGLHand-HFREQ.mat",
-                           # "5F-SubjectI-160723-5St-SGLHand-HFREQ.mat"])
-# subject_data_files.append(["5F-SubjectI-160723-5St-SGLHand-HFREQ.mat",
-                           # "5F-SubjectI-160719-5St-SGLHand-HFREQ.mat"])
+for f_c in files_c:
+  for f_e in files_e:
+    subject_data_files.append([f_c, f_e])
+for f_e in files_e:
+  for f_c in files_c:
+    subject_data_files.append([f_e, f_c])
 
 # data used for training
 subject_data_file_1 = subject_data_files[run_index][0]
@@ -194,13 +134,13 @@ def butter_bandpass_filter(data, lowcut, highcut, sample_freq, order=3, axis=1):
   y = signal.sosfilt(sos, data, axis=axis)
   return y
 
-print("Bandpass filter EEG data (4-40Hz)")
-start_time_bandpass = time.perf_counter()
-eeg_data_1 = butter_bandpass_filter(eeg_data_1, 4.0, 40.0, sample_frequency_1, order=6, axis=1)
-eeg_data_2 = butter_bandpass_filter(eeg_data_2, 4.0, 40.0, sample_frequency_2, order=6, axis=1)
+# print("Bandpass filter EEG data (4-40Hz)")
+# start_time_bandpass = time.perf_counter()
+# eeg_data_1 = butter_bandpass_filter(eeg_data_1, 4.0, 40.0, sample_frequency_1, order=6, axis=1)
+# eeg_data_2 = butter_bandpass_filter(eeg_data_2, 4.0, 40.0, sample_frequency_2, order=6, axis=1)
 
-end_time_bandpass = time.perf_counter()
-print(f"Time to apply bandpass filter: {end_time_bandpass-start_time_bandpass:.2f}s")
+# end_time_bandpass = time.perf_counter()
+# print(f"Time to apply bandpass filter: {end_time_bandpass-start_time_bandpass:.2f}s")
 
 ###############################################################################
 
@@ -216,7 +156,7 @@ for trial, label in zip(trials_1, labels_1):
   trial_data = []
   for ch_index in ch_picks:
     ch = trial[ch_index]
-    cwt = create_ctw_for_channel(ch, widths_max=40)
+    cwt = create_ctw_for_channel(ch, widths_max=30)
     trial_data.append(cwt)
   list_of_trial_data_1.append(trial_data)
 
@@ -229,7 +169,7 @@ for trial, label in zip(trials_2, labels_2):
   trial_data = []
   for ch_index in ch_picks:
     ch = trial[ch_index]
-    cwt = create_ctw_for_channel(ch, widths_max=40)
+    cwt = create_ctw_for_channel(ch, widths_max=30)
     trial_data.append(cwt)
   list_of_trial_data_2.append(trial_data)
 
@@ -323,7 +263,7 @@ model.add(layers.BatchNormalization())
 model.add(layers.MaxPooling2D(pool_size=(3,1)))
 model.add(layers.Dropout(0.3))
 model.add(layers.Flatten())
-model.add(layers.Dense(32, activation="elu"))
+# model.add(layers.Dense(32, activation="elu"))
 model.add(layers.Dense(num_classes, activation="softmax"))
 
 # instantiate an optimizer
@@ -415,6 +355,11 @@ cm_test = confusion_matrix(true_test_labels, predicted_test_labels).numpy()
 print("Confusion matrix (test data)")
 print(cm_test)
 
+true_positives = cm_test.diagonal().sum()
+acc_test = true_positives/num_trials_2
+print(f"Test accuracy: {acc_test:.3f}")
+
+
 # precision and recall per class
 precision, recall, f_score = calculate_cm_scores(cm_test)
 print("Mean precision per class:")
@@ -426,4 +371,3 @@ for i, r in enumerate(recall):
 print("Mean F1 score per class:")
 for i, r in enumerate(f_score):
   print(f"{i}: {r:.2f}")
-
