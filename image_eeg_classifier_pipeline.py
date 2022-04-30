@@ -23,6 +23,7 @@ from confusion_matrix import get_confusion_matrix, plot_confusion_matrix, calcul
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras.models import Sequential
+from tensorflow.keras.utils import plot_model
 # from sklearn.model_selection import StratifiedKFold
 from sys import exit
 
@@ -39,6 +40,7 @@ eeg_data_loader_instance = eeg_data_loader()
 eeg_data = eeg_data_loader_instance.load_eeg_from_mat(subject_data_path)
 sample_frequency = eeg_data_loader_instance.sample_frequency
 num_samples = eeg_data_loader_instance.num_samples
+events = eeg_data_loader_instance.find_all_events()
 
 # channel names
 ch_names = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'O1', 'O2',
@@ -48,25 +50,74 @@ ch_names = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'O1', 'O2',
 # channels closest to the primary motor cortex
 # F3, Fz, F4, C3, Cz, C4, P3, Pz, P4
 # ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
-ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+# pick all channels except reference and Fp1, Fp2
+ch_picks = [2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20]
 # print([ch_names[i] for i in ch_picks])
 
 # obtain trial data and labels for this subject
-trials, labels = eeg_data_loader_instance.get_trials_x_and_y()
+def get_trials_x_and_y(eeg_data, events, sfreq, duration=1., prefix_time=0.2,
+                       suffix_time=0.2, downsample_step=1, ch_picks=None):
+  # reshape eeg data -> n_channels x n_times
+  transposed_eeg_data = eeg_data.transpose()
+  X = list()
+  y = list()
+  
+  # trial duration is actually variable, but cannot be determined precisely anyway
+  trial_frames = int(duration * sfreq)
+  
+  # (optional) start a bit earlier + extend
+  prefix_frames = int(sfreq * prefix_time)
+  affix_frames = int(sfreq * suffix_time)
+  
+  for event in events:
+    start_i = event['start'] - prefix_frames
+    
+    # no trial data before time 0 (should be given implicit, but who knows)
+    if start_i < 0:
+      print("get_trials_x_and_y: skip trial (start_i < 0)")
+      continue
+    # assert start_i >= 0
+    
+    # stop_i = event['stop']
+    stop_i = start_i + trial_frames + affix_frames
+    
+    # for ch_index in ch_picks:
+      # transposed_eeg_data[ch_index][start_i:stop_i:downsample_step]
+    # this is equal to:
+    # for all picked channels, select all frames (with downsample step) from start to stop
+    trial = np.array([transposed_eeg_data[ch_index][start_i:stop_i:downsample_step] for ch_index in ch_picks])
+    
+    # filter outliers with too large amplitude
+    if trial.max() > 200 or trial.min() < -200:
+      print("Skip trial with amplitude > 200.")
+      continue
+    
+    X.append(trial)
+    
+    # event type (1-5)
+    y.append(event['event'])
+  
+  return X, y
+
+downsample_step = 1
+trials, labels = get_trials_x_and_y(eeg_data, events, sample_frequency,
+                                    downsample_step=downsample_step,
+                                    ch_picks=ch_picks)
+
 # X = np.array(trials)
-y = np.array(labels) - 1  # labels should range from 0-4 (?)
+# y = np.array(labels) - 1  # labels should range from 0-4 (?)
 
 num_classes = 5
 
 # generate the "images" per channel for all trials
 list_of_trial_data = []
+list_of_labels = []
 
 # CTW images
 for trial, label in zip(trials, labels):
   trial_data = []
-  for ch_index in ch_picks:
-    ch = trial[ch_index]
-    cwt = create_ctw_for_channel(ch, widths_max=30)  # 30, 40?
+  for ch in trial:
+    cwt = create_ctw_for_channel(ch, widths_max=30)
     trial_data.append(cwt)
     
     # note for pretty images use another (no) cmap
@@ -74,6 +125,7 @@ for trial, label in zip(trials, labels):
     # plt.title('CWT')
     # plt.show()
   list_of_trial_data.append(trial_data)
+  list_of_labels.append(label)
 
 
 # STFT images
@@ -99,10 +151,13 @@ if False:
       # plt.xlabel('Time [sec]')
       # plt.show()
     list_of_trial_data.append(trial_data)
+    list_of_labels.append(label)
 
 X = np.array(list_of_trial_data)
 # print("X:", type(X), X.shape)
 # should be (num_trials, num_channels, num_f, num_t)
+
+y = np.array(list_of_labels) - 1  # 0-4 instead of 1-5
 
 # some layers (conv, max pool) assume the input to have the channels as the
 # last dimension (channels_last), e.g. (batch, dim1, dim2, channel)
