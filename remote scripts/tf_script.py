@@ -32,11 +32,10 @@ if len(sys.argv) == 1:
 
 file_index = int(sys.argv[1])
 
-use_model = 1
+param_index = 1
 if file_index > 18:
   file_index -= 19
-  use_model = 2
-print(f"Use model {use_model}")
+  param_index = 2
 
 eeg_data_folder = "eeg-data"
 # all files
@@ -73,7 +72,7 @@ sample_frequency = eeg_data_loader_instance.sample_frequency
 num_samples = eeg_data_loader_instance.num_samples
 events = eeg_data_loader_instance.find_all_events()
 
-num_classes = 5
+num_classes = 3
 
 ###############################################################################
 
@@ -187,7 +186,16 @@ else:
   raise RuntimeError("Unexpected target frequency:", sample_frequency)
 """
 
+# run 2 - do not use any prefix or suffix frames
+if param_index == 1:
+  prefix_time = 0.2
+  suffix_time = 0.2
+else:
+  prefix_time = 0
+  suffix_time = 0
+
 trials, labels = get_trials_x_and_y(eeg_data, events, sample_frequency,
+                                    prefix_time=prefix_time, suffix_time=suffix_time,
                                     downsample_step=downsample_step, ch_picks=ch_picks)
 
 print(f"Data sample frequency: {sample_frequency} Target frequency: {target_frequency}")
@@ -231,8 +239,16 @@ for trial, label in zip(trials, labels):
   list_of_labels.append(label)
 """
 
+  
 # CTW images
 for trial, label in zip(trials, labels):
+  
+  if label == 2 or label == 4:
+    continue
+  elif label == 3:
+    label = 2
+  elif label == 5:
+    label = 3
   
   trial_data = []
   for ch in trial:
@@ -335,35 +351,17 @@ for i in range(k):
   model.add(layers.Dense(num_classes, activation="softmax"))
   """
   
-  # CWT:
-  if use_model == 1:
-    model.add(layers.Conv2D(30, 5, padding="same", activation="elu", input_shape=input_shape))
-    # print(model.output_shape)
-    model.add(layers.BatchNormalization())
-    model.add(layers.MaxPooling2D(pool_size=(1,3)))
-    model.add(layers.Dropout(0.3))
-    model.add(layers.Conv2D(60, 7, padding="same", activation="elu"))
-    model.add(layers.BatchNormalization())
-    model.add(layers.MaxPooling2D(pool_size=(1,3)))
-    model.add(layers.Dropout(0.3))
-    model.add(layers.Conv2D(90, 7, padding="same", activation="elu"))
-    model.add(layers.BatchNormalization())
-    model.add(layers.MaxPooling2D(pool_size=(1,3)))
-    model.add(layers.Dropout(0.3))
-    model.add(layers.Flatten())
-    model.add(layers.Dense(num_classes, activation="softmax"))
-  else:
-    model.add(layers.Conv2D(40, 5, padding="same", activation="elu", input_shape=input_shape))
-    # print(model.output_shape)
-    model.add(layers.BatchNormalization())
-    model.add(layers.MaxPooling2D(pool_size=(1,3)))
-    model.add(layers.Dropout(0.3))
-    model.add(layers.Conv2D(80, 7, padding="same", activation="elu"))
-    model.add(layers.BatchNormalization())
-    model.add(layers.MaxPooling2D(pool_size=(1,3)))
-    model.add(layers.Dropout(0.3))
-    model.add(layers.Flatten())
-    model.add(layers.Dense(num_classes, activation="softmax"))
+  model.add(layers.Conv2D(40, 5, padding="same", activation="elu", input_shape=input_shape))
+  # print(model.output_shape)
+  model.add(layers.BatchNormalization())
+  model.add(layers.MaxPooling2D(pool_size=(1,3)))
+  model.add(layers.Dropout(0.3))
+  model.add(layers.Conv2D(80, 7, padding="same", activation="elu"))
+  model.add(layers.BatchNormalization())
+  model.add(layers.MaxPooling2D(pool_size=(1,3)))
+  model.add(layers.Dropout(0.3))
+  model.add(layers.Flatten())
+  model.add(layers.Dense(num_classes, activation="softmax"))
   
   # instantiate an optimizer
   learn_rate = 0.001
