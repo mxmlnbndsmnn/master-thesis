@@ -337,28 +337,28 @@ for i in range(k):
   
   # CWT:
   if use_model == 1:
-    model.add(layers.Conv2D(30, 5, padding="same", activation="relu", input_shape=input_shape))
+    model.add(layers.Conv2D(30, 5, padding="same", activation="elu", input_shape=input_shape))
     # print(model.output_shape)
     model.add(layers.BatchNormalization())
     model.add(layers.MaxPooling2D(pool_size=(1,3)))
     model.add(layers.Dropout(0.3))
-    model.add(layers.Conv2D(60, 7, padding="same", activation="relu"))
+    model.add(layers.Conv2D(60, 7, padding="same", activation="elu"))
     model.add(layers.BatchNormalization())
     model.add(layers.MaxPooling2D(pool_size=(1,3)))
     model.add(layers.Dropout(0.3))
-    model.add(layers.Conv2D(90, 7, padding="same", activation="relu"))
+    model.add(layers.Conv2D(90, 7, padding="same", activation="elu"))
     model.add(layers.BatchNormalization())
     model.add(layers.MaxPooling2D(pool_size=(1,3)))
     model.add(layers.Dropout(0.3))
     model.add(layers.Flatten())
     model.add(layers.Dense(num_classes, activation="softmax"))
   else:
-    model.add(layers.Conv2D(40, 5, padding="same", activation="relu", input_shape=input_shape))
+    model.add(layers.Conv2D(40, 5, padding="same", activation="elu", input_shape=input_shape))
     # print(model.output_shape)
     model.add(layers.BatchNormalization())
     model.add(layers.MaxPooling2D(pool_size=(1,3)))
     model.add(layers.Dropout(0.3))
-    model.add(layers.Conv2D(80, 7, padding="same", activation="relu"))
+    model.add(layers.Conv2D(80, 7, padding="same", activation="elu"))
     model.add(layers.BatchNormalization())
     model.add(layers.MaxPooling2D(pool_size=(1,3)))
     model.add(layers.Dropout(0.3))
@@ -382,7 +382,7 @@ for i in range(k):
   # monitors the validation accuracy and stops training after [patience] epochs
   # that show no improvements
   es_callback = tf.keras.callbacks.EarlyStopping(monitor="accuracy",
-                                                 patience=5,
+                                                 patience=50,
                                                  restore_best_weights=True)
   
   # train the model
