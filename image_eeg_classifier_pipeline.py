@@ -117,7 +117,7 @@ list_of_labels = []
 for trial, label in zip(trials, labels):
   trial_data = []
   for ch in trial:
-    cwt = create_ctw_for_channel(ch, widths_max=30)
+    cwt = create_ctw_for_channel(ch, widths_max=25)
     trial_data.append(cwt)
     
     # note for pretty images use another (no) cmap
@@ -162,9 +162,9 @@ y = np.array(list_of_labels) - 1  # 0-4 instead of 1-5
 # some layers (conv, max pool) assume the input to have the channels as the
 # last dimension (channels_last), e.g. (batch, dim1, dim2, channel)
 X = tf.constant(X)
-# print(X[0].shape) e.g. (9, 17, 7)
+# print(X[0].shape) # e.g. (9, 17, 7)
 X = tf.transpose(X, perm=[0,2,3,1])
-# print(X[0].shape) e.g. (17, 7, 9)
+print(X[0].shape) # e.g. (17, 7, 9)
 input_shape = X[0].shape
 
 
@@ -277,21 +277,23 @@ for i in range(k):
   # layers.Rescaling(scale_factor, input_shape=input_shape),
   
   model.add(layers.Conv2D(30, 5, padding='same', activation='elu', input_shape=input_shape))
-  # print(model.output_shape)
+  print(model.output_shape)
   model.add(layers.BatchNormalization())
-  model.add(layers.MaxPooling2D(pool_size=(3,1)))
+  model.add(layers.MaxPooling2D(pool_size=(1,3)))
   model.add(layers.Dropout(0.3))
   model.add(layers.Conv2D(60, 7, padding='same', activation='elu'))
   model.add(layers.BatchNormalization())
-  model.add(layers.MaxPooling2D(pool_size=(3,1)))
+  model.add(layers.MaxPooling2D(pool_size=(1,3)))
   model.add(layers.Dropout(0.3))
   model.add(layers.Conv2D(90, 7, padding='same', activation='elu'))
   model.add(layers.BatchNormalization())
-  model.add(layers.MaxPooling2D(pool_size=(3,1)))
+  model.add(layers.MaxPooling2D(pool_size=(1,3)))
   model.add(layers.Dropout(0.3))
   model.add(layers.Flatten())
   # model.add(layers.Dense(64, activation='elu'))
   model.add(layers.Dense(num_classes, activation='softmax'))
+  
+  exit()
   
   # instantiate an optimizer
   learn_rate = 0.001

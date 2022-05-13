@@ -56,7 +56,7 @@ subject_data_files = ['5F-SubjectA-160405-5St-SGLHand.mat',  # 0
                       '5F-SubjectI-160723-5St-SGLHand-HFREQ.mat']  # 18
 
 # choose the subject file from the file list
-file_index = 10
+file_index = 0
 subject_data_file = subject_data_files[file_index]
 
 print(f"Loading eeg data from {subject_data_file}")
@@ -77,9 +77,9 @@ ch_names = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'O1', 'O2',
 # F3, Fz, F4, C3, Cz, C4, P3, Pz, P4
 # ch_picks = [2, 3, 4, 5, 6, 7, 18, 19, 20]
 # pick almost all channels
-# ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+ch_picks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20]
 # ch_picks = [1, 2, 3, 4, 5, 6, 7, 9, 13, 15, 17, 18, 19, 20]
-ch_picks = [0, 2, 3, 4, 5, 6, 7, 8, 12, 14, 16, 18, 19, 20]
+# ch_picks = [0, 2, 3, 4, 5, 6, 7, 8, 12, 14, 16, 18, 19, 20]
 print("Channels:")
 print([ch_names[i] for i in ch_picks])
 
@@ -166,7 +166,7 @@ def parallel_shuffle(a1, a2):
   return [a1[i] for i in permutation], [a2[i] for i in permutation]
 
 
-trials, labels = parallel_shuffle(trials, labels)
+# trials, labels = parallel_shuffle(trials, labels)
 
 ###############################################################################
 
@@ -269,7 +269,7 @@ if len(events) > 0 and False:
 
 # create the core mne data structure from scratch
 # https://mne.tools/dev/auto_tutorials/simulation/10_array_objs.html#tut-creating-data-structures
-if False:
+if True:
   # by creating an info object ...
   # ch_types = ['eeg'] * len(ch_names)
   ch_types = 'eeg'
@@ -284,8 +284,9 @@ if False:
   # see np.min(transposed_eeg_data) and np.max(transposed_eeg_data)
   raw_data = mne.io.RawArray(transposed_eeg_data, info)
   raw_data.load_data()
-  raw_data.filter(4., 40.)
-  raw_data.pick(['F3', 'Fz', 'F4', 'C3', 'Cz', 'C4', 'P3', 'Pz', 'P4'])
+  # raw_data.filter(4., 40.)
+  # raw_data.pick(['F3', 'Fz', 'F4', 'C3', 'Cz', 'C4', 'P3', 'Pz', 'P4'])
+  raw_data.pick(['C3', 'Cz', 'C4', 'P3', 'Pz', 'P4'])
   
   start_time = events[0]['start']/sample_frequency
   
@@ -297,11 +298,13 @@ if False:
   anno = mne.Annotations(onset=onsets, duration=1., description=descriptions)
   
   raw_data.set_annotations(anno)
-  # data is in microvolts, not volts!
   
-  scalings = dict(eeg=8)
+  # data is in microvolts, not volts!
+  scalings = dict(eeg=15)
   raw_data.plot(show_scrollbars=False, show_scalebars=False,
                 duration=20, start=start_time-1, scalings = scalings)
+  
+  exit()
   
   # note that n_components cannot be greater than number of channels
   ica = mne.preprocessing.ICA(n_components=6, random_state=42, max_iter=800)
@@ -310,8 +313,6 @@ if False:
   
   ica.plot_components()
   # ica.plot_overlay(raw_data, exclude=[0,1])
-  
-  exit()
   
   raw_copy = raw_data.copy()
   # raw_copy.filter(4., 38.)

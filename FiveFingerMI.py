@@ -18,6 +18,7 @@ from scipy.stats import kurtosis
 import numpy as np
 from numpy import savetxt, loadtxt
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 from sklearn.decomposition import FastICA, PCA
 
 from eeg_data_loader import eeg_data_loader
@@ -61,9 +62,10 @@ ch_names = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'O1', 'O2',
 ch_picks = [2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20]
 # print([ch_names[i] for i in ch_picks])
 
-print(eeg_data.shape)
-eeg_data = np.array([eeg_data.T[i] for i in ch_picks]).T
-print(eeg_data.shape)
+# REMOVED to retain the channel indices as expected for the plots
+# print(eeg_data.shape)
+# eeg_data = np.array([eeg_data.T[i] for i in ch_picks]).T
+# print(eeg_data.shape)
 
 # each item in this list is a dict containing start + stop index and event type
 events = eeg_data_loader_instance.find_all_events()
@@ -94,6 +96,7 @@ def butter_bandpass_filter(data, lowcut, highcut, sample_freq, order=3, axis=1):
 
 ###############################################################################
 
+"""
 varis = []
 kurts = []
 max_values = []
@@ -174,11 +177,12 @@ max_values = np.array(max_values)
 min_values = np.array(min_values)
 
 exit()
+"""
 
 ###############################################################################
 
-"""
 # plot raw eeg data
+"""
 if len(events) > 0:
     first_event = events[0]
     # inspect a time fram from event onset (change in marker) for 1 second
@@ -209,8 +213,9 @@ if len(events) > 0:
     # hide x labels between subplots
     for ax in axs:
         ax.label_outer()
-"""
 
+exit()
+"""
 
 """
 start_1 = time.perf_counter()
@@ -227,28 +232,30 @@ exit()
 """
 
 
-
 # plot raw eeg data
 if len(events) > 0:
-  first_event = events[0]
-  # inspect a time fram from event onset (change in marker) for 1 second
-  # (1 multiplied with the sample frequency)
-  start = first_event['start']
+  first_index = 1
+  last_index = 8
+  first_event = events[first_index]
+  last_event = events[last_index]
+  start = first_event["start"] - 1 * sample_frequency
   # stop = start_i + sample_frequency
   # add one because the range (end) is exclusive
-  stop = first_event['stop'] + 1
+  # stop = first_event['stop'] + 1
+  stop = last_event["stop"] + 1 * sample_frequency
   
   picks = ch_picks
   n_picks = len(picks)
   
   # stack multiple subplots in one dimension
-  fig = plt.figure(figsize=(20,15))
+  fig = plt.figure(figsize=(20,10))
   # plt.title("Raw signal")
-  plt.title("EEG-Signal, kein Filter")
-  # plt.xticks([])
+  # plt.title("EEG-Signal, kein Filter")
+  plt.xticks([])  # range from 0.0 to 1.0
   plt.yticks([])  # remove y ticks from "parent" plot
   gridspec = fig.add_gridspec(n_picks, hspace=0)
   axs = gridspec.subplots(sharex=True, sharey=True)
+  plt.xlabel("Frame index")
   
   for pick_index, ch_index in zip(range(n_picks), picks):
     # x = range(num_samples)
@@ -257,15 +264,32 @@ if len(events) > 0:
     y = [eeg_data[i][ch_index] for i in range(start, stop)]
     # plt.plot(x,y)
     axs[pick_index].plot(x, y)
+    axs[pick_index].margins(x=0)  # remove white margins on x axis (left and right)
+    
+    # y ranges from -25 to +25 - nah not in general
+    # this breaks the plot of the actual EEG data ... idk why
+    # axs[pick_index].add_patch(patches.Rectangle((0,-25), 200, 50, color="red"))
+    colors = ["red", "orange", "cyan", "yellow", "green"]
+    for ev in events[first_index:last_index+1]:
+      x1 = ev["start"]
+      x2 = ev["stop"] + 1
+      # use axis transform to use range 0 to 1 instead of in values (e.g. -100 to 100)
+      axs[pick_index].fill_between(range(x1, x2), 0, 1,
+                                   color=colors[ev["event"]-1], alpha=0.5,
+                                   transform=axs[pick_index].get_xaxis_transform())
+    
     # parameter ylim=(-8.0,8.0)
     # labelpad to add some space between the ylabel and the axis
     axs[pick_index].set_ylabel(ch_names[ch_index], rotation="horizontal", labelpad=10)
-    axs[pick_index].set_xticks([])  # remove frame index on x axis
+    # axs[pick_index].set_xticks([])  # remove frame index on x axis
     axs[pick_index].set_yticks([])  # remove scale on y axis
   
   # hide x labels between subplots
   for ax in axs:
     ax.label_outer()
+    # ax.fill_between()
+  
+  exit()
   
   # again but with filtered data, 3rd order butterworth
   filtered_eeg_data = butter_bandpass_filter(eeg_data, 4.0, 40.0, sample_frequency, order=3, axis=1)
