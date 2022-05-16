@@ -126,7 +126,7 @@ def get_trials_x_and_y(eeg_data, events, sfreq, duration=1., prefix_time=0.2,
     # assert start_i >= 0
     
     # stop_i = event['stop']
-    stop_i = start_i + trial_frames + affix_frames
+    stop_i = event['start'] + trial_frames + affix_frames
     
     # for ch_index in ch_picks:
       # transposed_eeg_data[ch_index][start_i:stop_i:downsample_step]
@@ -386,11 +386,11 @@ for i in range(k):
                                                  restore_best_weights=True)
   
   # train the model
-  num_epochs = 500
-  # print(f"Training for up to {num_epochs} epochs.")
-  print(f"Training for EXACTLY {num_epochs} epochs.")
+  num_epochs = 80
+  print(f"Training for up to {num_epochs} epochs.")
+  # print(f"Training for EXACTLY {num_epochs} epochs.")
   history = model.fit(train_ds, validation_data=valid_ds, epochs=num_epochs,
-                      verbose=0) #, callbacks=[es_callback])
+                      verbose=0, callbacks=[es_callback])
   
   # using early stopping, the actual number of epochs might be lower than num_epochs!
   true_num_epochs = len(history.history["loss"])
