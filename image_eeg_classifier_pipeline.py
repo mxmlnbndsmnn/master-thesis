@@ -109,6 +109,39 @@ trials, labels = get_trials_x_and_y(eeg_data, events, sample_frequency,
 
 num_classes = 5
 
+###############################################################################
+
+# create plots
+plt.rcParams.update({'font.size': 20})
+
+trial = trials[0]
+ch = trial[0]
+cwt = create_ctw_for_channel(ch, widths_max=40)
+plt.xlabel("Frame index")
+plt.ylabel("Scale")
+# plt.ylim([40, 0])
+plt.imshow(cwt)
+plt.show()
+
+stft_window = 60
+stft, f, t = create_stft_for_channel(ch, sample_frequency=sample_frequency,
+                                     nperseg=stft_window, high_cut_freq=40)
+stft = stft[:-1,:-1]
+# plt.pcolormesh(t, f, stft, shading="nearest")
+# without min/max values they are calculated from the data min/max
+# here, the max is set to a lower value than the max of the stft values (approx. 4)
+# for a better visualization (more visible color differences)
+plt.figure(figsize=(10,4))
+plt.pcolormesh(t, f, stft, shading="flat", vmin=0, vmax=3)
+# plt.title("STFT Magnitude")
+plt.ylabel("Frequency [Hz]")
+plt.xlabel("Time [s]")
+plt.show()
+
+exit()
+
+###############################################################################
+
 # generate the "images" per channel for all trials
 list_of_trial_data = []
 list_of_labels = []
