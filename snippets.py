@@ -17,11 +17,11 @@ from sys import exit
 # calculate kappa from confusion matrix values
 # there exists a function to calculate kappa, but this needs both lists of labels
 # which I do not have available here
-cm = [[149,  39,  14,   3,   1],
- [ 23, 121,  22,   3,   2],
- [  4,  18, 138,  25,  12],
- [  1,   3,  35,  85,  66],
- [  2,   2,  13,  25, 144]]
+cm = [[136,  32,  15,   4,  10],
+ [ 32,  80,  41,   4,   9],
+ [ 11,  40,  74,  30,  33],
+ [  7,   9,  38,  64,  68],
+ [  6,   0,  19,  29, 129]]
 
 cm = np.array(cm)
 
@@ -35,6 +35,9 @@ c = a * b
 c = c / num_total
 
 expected_acc = c.sum() / num_total
+
+print(f"observed acc: {observed_acc:.3f}")
+print(f"expected acc: {expected_acc:.3f}")
 
 kappa = (observed_acc - expected_acc) / (1 - expected_acc)
 print(f"Kappa = {kappa} ~ {kappa:.2f}")

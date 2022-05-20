@@ -114,7 +114,7 @@ def get_trials_x_and_y(eeg_data, events, sfreq, duration=1., prefix_time=0.2,
   
   # (optional) start a bit earlier + extend
   prefix_frames = int(sfreq * prefix_time)
-  affix_frames = int(sfreq * suffix_time)
+  suffix_frames = int(sfreq * suffix_time)
   
   for event in events:
     start_i = event['start'] - prefix_frames
@@ -126,7 +126,7 @@ def get_trials_x_and_y(eeg_data, events, sfreq, duration=1., prefix_time=0.2,
     # assert start_i >= 0
     
     # stop_i = event['stop']
-    stop_i = event['start'] + trial_frames + affix_frames
+    stop_i = event['start'] + trial_frames + suffix_frames
     
     # for ch_index in ch_picks:
       # transposed_eeg_data[ch_index][start_i:stop_i:downsample_step]
@@ -188,7 +188,9 @@ else:
 """
 
 trials, labels = get_trials_x_and_y(eeg_data, events, sample_frequency,
-                                    downsample_step=downsample_step, ch_picks=ch_picks)
+                                    prefix_time=0.0,
+                                    downsample_step=downsample_step,
+                                    ch_picks=ch_picks)
 
 print(f"Data sample frequency: {sample_frequency} Target frequency: {target_frequency}")
 sample_frequency = target_frequency
