@@ -4,7 +4,7 @@
 A pipeline to generate time-frequency representations of EEG data recorded for 5 different movement intention tasks and a CNN to classify them.
 Written in python (3) with Tensorflow and Keras for the machine learning parts.
 
-[cwt_example](https://user-images.githubusercontent.com/46690491/178151463-f284de48-6227-4018-8604-21cac7698f7e.png)
+![cwt_example](https://user-images.githubusercontent.com/46690491/178151463-f284de48-6227-4018-8604-21cac7698f7e.png)
 
 ## Pipeline
 
@@ -23,6 +23,7 @@ The basic structure looks like this:
 - batch norm layer
 - max pooling 2d layer
 - dropout layer
+
 (repeat 2x or 3x)
 - flatten layer
 - dense layer (output dimension = number of MI classes, softmax activation)
